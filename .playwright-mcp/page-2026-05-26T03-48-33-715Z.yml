@@ -1,0 +1,31 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - heading "Retro Board" [level=1] [ref=e11]
+        - paragraph [ref=e12]: Ferramenta de retrospectiva colaborativa para equipes ágeis
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]:
+            - img [ref=e16]
+            - text: Entrar na Retrospectiva
+          - generic [ref=e21]: Crie uma nova sessão ou entre em uma existente
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - generic [ref=e24]: Seu nome
+            - textbox "Seu nome" [ref=e25]:
+              - /placeholder: Digite seu nome
+          - button "Criar Nova Sessão" [ref=e27]:
+            - img
+            - text: Criar Nova Sessão
+          - generic [ref=e29]: ou
+          - generic [ref=e30]:
+            - generic [ref=e31]: Código da sessão
+            - generic [ref=e32]:
+              - textbox "Código da sessão" [ref=e33]:
+                - /placeholder: ABC123
+              - button [disabled]:
+                - img
+            - paragraph [ref=e34]: Insira o código de 6 caracteres compartilhado pelo facilitador
+      - paragraph [ref=e35]: Os dados da sessão são compartilhados em tempo real entre todos os participantes
+  - alert [ref=e36]

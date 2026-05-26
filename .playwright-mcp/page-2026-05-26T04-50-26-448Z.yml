@@ -1,0 +1,140 @@
+- generic:
+  - generic:
+    - banner:
+      - generic:
+        - generic:
+          - link:
+            - /url: /
+            - img
+          - generic:
+            - generic: Retro Board
+          - generic:
+            - generic: U4QBZX
+            - button:
+              - img
+        - generic:
+          - generic:
+            - generic: Conectado
+          - generic:
+            - img
+            - generic: "2"
+          - button [expanded]:
+            - img
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic: O que foi bom
+                - generic: "1"
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: Boa comunicação entre o time durante a sprint
+                  - generic:
+                    - generic: Carlos Teste
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                        - generic: "1"
+              - button:
+                - img
+                - text: Adicionar
+          - generic:
+            - generic:
+              - generic:
+                - generic: O que pode melhorar
+                - generic: "1"
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: Deploy na sexta causou problemas no fim de semana
+                  - generic:
+                    - generic: Carlos Teste
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                        - generic: "1"
+              - button:
+                - img
+                - text: Adicionar
+          - generic:
+            - generic:
+              - generic:
+                - generic: Ideias
+                - generic: "0"
+            - generic:
+              - button:
+                - img
+                - text: Adicionar
+          - generic:
+            - generic:
+              - generic:
+                - generic: Ações
+                - generic: "1"
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: Definir política de não fazer deploy às sextas
+                  - generic:
+                    - img
+                    - generic: Tech Lead
+                  - generic:
+                    - generic: IA
+              - button:
+                - img
+                - text: Adicionar Ação
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - img
+              - text: Timer
+          - generic:
+            - generic:
+              - generic: 00:00
+              - paragraph: Tempo esgotado!
+            - generic:
+              - button:
+                - img
+                - text: +1 min
+        - generic:
+          - generic:
+            - generic:
+              - img
+              - text: Participantes (2)
+          - generic:
+            - list:
+              - listitem:
+                - img
+                - generic: Carlos Teste
+              - listitem:
+                - img
+                - generic: Carlos Teste
+  - generic [ref=e12] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e13]:
+      - img [ref=e14]
+    - generic [ref=e137]:
+      - button "Open issues overlay" [ref=e138]:
+        - generic [ref=e139]:
+          - generic [ref=e140]: "0"
+          - generic [ref=e141]: "1"
+        - generic [ref=e142]: Issue
+      - button "Collapse issues badge" [ref=e143]:
+        - img [ref=e144]
+  - alert
+  - menu [active] [ref=e147]:
+    - menuitem "Ações Anteriores" [ref=e148]:
+      - img
+      - text: Ações Anteriores
+    - menuitem "Gerar Ações com IA" [ref=e149]:
+      - img
+      - text: Gerar Ações com IA
+    - menuitem "Encerrar Retro" [ref=e150]:
+      - img
+      - text: Encerrar Retro

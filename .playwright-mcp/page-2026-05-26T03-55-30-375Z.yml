@@ -1,0 +1,84 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - link [ref=e6] [cursor=pointer]:
+            - /url: /
+            - img [ref=e7]
+          - generic [ref=e16]: Retro Board
+          - generic [ref=e17]:
+            - generic [ref=e18]: U4QBZX
+            - button [ref=e19]:
+              - img
+        - generic [ref=e20]:
+          - generic [ref=e23]: Conectando...
+          - generic [ref=e24]:
+            - img [ref=e25]
+            - generic [ref=e30]: "0"
+          - button [ref=e31]:
+            - img
+    - generic [ref=e32]:
+      - generic [ref=e34]:
+        - generic [ref=e35]:
+          - generic [ref=e37]:
+            - generic [ref=e38]: O que foi bom
+            - generic [ref=e39]: "1"
+          - generic [ref=e40]:
+            - generic [ref=e42]:
+              - paragraph [ref=e43]: Boa comunicação entre o time durante a sprint
+              - generic [ref=e44]:
+                - generic [ref=e45]: Carlos Teste
+                - generic [ref=e46]:
+                  - button [ref=e47]:
+                    - img
+                  - button "1" [ref=e48]:
+                    - img
+                    - generic [ref=e49]: "1"
+            - button "Adicionar" [ref=e50]:
+              - img
+              - text: Adicionar
+        - generic [ref=e51]:
+          - generic [ref=e53]:
+            - generic [ref=e54]: O que pode melhorar
+            - generic [ref=e55]: "0"
+          - button "Adicionar" [ref=e57]:
+            - img
+            - text: Adicionar
+        - generic [ref=e58]:
+          - generic [ref=e60]:
+            - generic [ref=e61]: Ideias
+            - generic [ref=e62]: "0"
+          - button "Adicionar" [ref=e64]:
+            - img
+            - text: Adicionar
+        - generic [ref=e65]:
+          - generic [ref=e67]:
+            - generic [ref=e68]: Ações
+            - generic [ref=e69]: "0"
+          - button "Adicionar Ação" [ref=e71]:
+            - img
+            - text: Adicionar Ação
+      - generic [ref=e72]:
+        - generic [ref=e73]:
+          - generic [ref=e75]:
+            - img [ref=e76]
+            - text: Timer
+          - generic [ref=e79]:
+            - generic [ref=e80]:
+              - generic [ref=e81]: 05:00
+              - paragraph [ref=e82]: Configure o tempo
+            - generic [ref=e83]:
+              - spinbutton [ref=e84]: "5"
+              - generic [ref=e85]: min
+            - button "Iniciar" [ref=e87]:
+              - img
+              - text: Iniciar
+        - generic [ref=e88]:
+          - generic [ref=e90]:
+            - img [ref=e91]
+            - text: Participantes (0)
+          - paragraph [ref=e97]: Nenhum participante conectado
+  - button "Open Next.js Dev Tools" [ref=e103] [cursor=pointer]:
+    - img [ref=e104]
+  - alert [ref=e107]

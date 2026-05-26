@@ -1,0 +1,137 @@
+- generic:
+  - generic:
+    - banner:
+      - generic:
+        - generic:
+          - link:
+            - /url: /
+            - img
+          - generic:
+            - generic: Retro Board
+          - generic:
+            - generic: U4QBZX
+            - button:
+              - img
+        - generic:
+          - generic:
+            - generic: Conectado
+          - generic:
+            - img
+            - generic: "2"
+          - button [expanded]:
+            - img
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic: O que foi bom
+                - generic: "1"
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: Boa comunicação entre o time durante a sprint
+                  - generic:
+                    - generic: Carlos Teste
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                        - generic: "1"
+              - button:
+                - img
+                - text: Adicionar
+          - generic:
+            - generic:
+              - generic:
+                - generic: O que pode melhorar
+                - generic: "1"
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: Deploy na sexta causou problemas no fim de semana
+                  - generic:
+                    - generic: Carlos Teste
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                        - generic: "1"
+              - button:
+                - img
+                - text: Adicionar
+          - generic:
+            - generic:
+              - generic:
+                - generic: Ideias
+                - generic: "0"
+            - generic:
+              - button:
+                - img
+                - text: Adicionar
+          - generic:
+            - generic:
+              - generic:
+                - generic: Ações
+                - generic: "0"
+            - generic:
+              - button:
+                - img
+                - text: Adicionar Ação
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - img
+              - text: Timer
+          - generic:
+            - generic:
+              - generic: 05:20
+              - paragraph: Em andamento
+            - generic:
+              - button:
+                - img
+                - text: Pausar
+              - button:
+                - img
+                - text: 1 min
+        - generic:
+          - generic:
+            - generic:
+              - img
+              - text: Participantes (2)
+          - generic:
+            - list:
+              - listitem:
+                - img
+                - generic: Carlos Teste
+              - listitem:
+                - img
+                - generic: Carlos Teste
+  - generic [ref=e102] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e103]:
+      - img [ref=e104]
+    - generic [ref=e117]:
+      - button "Open issues overlay" [ref=e118]:
+        - generic [ref=e144]:
+          - generic [ref=e145]: "1"
+          - generic [ref=e146]: "2"
+        - generic [ref=e122]:
+          - text: Issue
+          - generic [ref=e147]: s
+      - button "Collapse issues badge" [ref=e123]:
+        - img [ref=e124]
+  - alert
+  - menu [active] [ref=e151]:
+    - menuitem "Ações Anteriores" [ref=e152]:
+      - img
+      - text: Ações Anteriores
+    - menuitem "Gerar Ações com IA" [ref=e153]:
+      - img
+      - text: Gerar Ações com IA
+    - menuitem "Encerrar Retro" [ref=e154]:
+      - img
+      - text: Encerrar Retro

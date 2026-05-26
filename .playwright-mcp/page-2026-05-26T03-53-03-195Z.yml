@@ -1,0 +1,94 @@
+- generic [ref=e1]:
+  - generic [ref=e40] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e41]:
+      - img [ref=e42]
+    - generic [ref=e46]:
+      - button "Open issues overlay" [ref=e47]:
+        - generic [ref=e48]:
+          - generic [ref=e49]: "0"
+          - generic [ref=e50]: "1"
+        - generic [ref=e51]: Issue
+      - button "Collapse issues badge" [ref=e52]:
+        - img [ref=e53]
+  - alert [ref=e45]
+  - generic [ref=e55]:
+    - banner [ref=e56]:
+      - generic [ref=e57]:
+        - generic [ref=e58]:
+          - link [ref=e59] [cursor=pointer]:
+            - /url: /
+            - img [ref=e60]
+          - generic [ref=e69]: Retro Board
+          - generic [ref=e70]:
+            - generic [ref=e71]: U4QBZX
+            - button [ref=e72]:
+              - img
+        - generic [ref=e73]:
+          - generic [ref=e76]: Conectado
+          - generic [ref=e77]:
+            - img [ref=e78]
+            - generic [ref=e83]: "2"
+          - button [ref=e84]:
+            - img
+    - generic [ref=e85]:
+      - generic [ref=e87]:
+        - generic [ref=e88]:
+          - generic [ref=e90]:
+            - generic [ref=e91]: O que foi bom
+            - generic [ref=e92]: "0"
+          - generic [ref=e151]:
+            - textbox "Digite seu feedback..." [active] [ref=e152]
+            - generic [ref=e153]:
+              - generic [ref=e154]: 0/500
+              - generic [ref=e155]:
+                - button [ref=e156]:
+                  - img
+                - button [disabled]:
+                  - img
+        - generic [ref=e95]:
+          - generic [ref=e97]:
+            - generic [ref=e98]: O que pode melhorar
+            - generic [ref=e99]: "0"
+          - button "Adicionar" [ref=e101]:
+            - img
+            - text: Adicionar
+        - generic [ref=e102]:
+          - generic [ref=e104]:
+            - generic [ref=e105]: Ideias
+            - generic [ref=e106]: "0"
+          - button "Adicionar" [ref=e108]:
+            - img
+            - text: Adicionar
+        - generic [ref=e109]:
+          - generic [ref=e111]:
+            - generic [ref=e112]: Ações
+            - generic [ref=e113]: "0"
+          - button "Adicionar Ação" [ref=e115]:
+            - img
+            - text: Adicionar Ação
+      - generic [ref=e116]:
+        - generic [ref=e117]:
+          - generic [ref=e119]:
+            - img [ref=e120]
+            - text: Timer
+          - generic [ref=e123]:
+            - generic [ref=e124]:
+              - generic [ref=e125]: 05:00
+              - paragraph [ref=e126]: Configure o tempo
+            - generic [ref=e127]:
+              - spinbutton [ref=e128]: "5"
+              - generic [ref=e129]: min
+            - button "Iniciar" [ref=e131]:
+              - img
+              - text: Iniciar
+        - generic [ref=e132]:
+          - generic [ref=e134]:
+            - img [ref=e135]
+            - text: Participantes (2)
+          - list [ref=e141]:
+            - listitem [ref=e142]:
+              - img [ref=e143]
+              - generic [ref=e145]: Carlos Teste
+            - listitem [ref=e146]:
+              - img [ref=e147]
+              - generic [ref=e149]: Carlos Teste

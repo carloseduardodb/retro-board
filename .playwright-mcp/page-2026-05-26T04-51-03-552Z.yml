@@ -1,0 +1,115 @@
+- generic:
+  - generic:
+    - banner:
+      - generic:
+        - generic:
+          - link:
+            - /url: /
+            - img
+          - generic:
+            - generic: Retro Board
+          - generic:
+            - generic: U4QBZX
+            - button:
+              - img
+        - generic:
+          - generic:
+            - generic: Conectado
+          - generic:
+            - img
+            - generic: "2"
+          - button [expanded]:
+            - img
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic: O que foi bom
+                - generic: "0"
+            - generic:
+              - button:
+                - img
+                - text: Adicionar
+          - generic:
+            - generic:
+              - generic:
+                - generic: O que pode melhorar
+                - generic: "0"
+            - generic:
+              - button:
+                - img
+                - text: Adicionar
+          - generic:
+            - generic:
+              - generic:
+                - generic: Ideias
+                - generic: "0"
+            - generic:
+              - button:
+                - img
+                - text: Adicionar
+          - generic:
+            - generic:
+              - generic:
+                - generic: Ações
+                - generic: "0"
+            - generic:
+              - button:
+                - img
+                - text: Adicionar Ação
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - img
+              - text: Timer
+          - generic:
+            - generic:
+              - generic: 05:00
+              - paragraph: Configure o tempo
+            - generic:
+              - spinbutton: "5"
+              - generic: min
+            - generic:
+              - button:
+                - img
+                - text: Iniciar
+        - generic:
+          - generic:
+            - generic:
+              - img
+              - text: Participantes (2)
+          - generic:
+            - list:
+              - listitem:
+                - img
+                - generic: Carlos Teste
+              - listitem:
+                - img
+                - generic: Carlos Teste
+  - generic [ref=e12] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e13]:
+      - img [ref=e14]
+    - generic [ref=e137]:
+      - button "Open issues overlay" [ref=e138]:
+        - generic [ref=e155]:
+          - generic [ref=e156]: "2"
+          - generic [ref=e157]: "3"
+        - generic [ref=e142]:
+          - text: Issue
+          - generic [ref=e158]: s
+      - button "Collapse issues badge" [ref=e143]:
+        - img [ref=e144]
+  - alert
+  - menu [active] [ref=e159]:
+    - menuitem "Ações Anteriores" [ref=e160]:
+      - img
+      - text: Ações Anteriores
+    - menuitem "Gerar Ações com IA" [ref=e161]:
+      - img
+      - text: Gerar Ações com IA
+    - menuitem "Encerrar Retro" [ref=e162]:
+      - img
+      - text: Encerrar Retro
