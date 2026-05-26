@@ -1,0 +1,16 @@
+name: Deploy to CapRover
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: caprover/deploy-from-github@v1.1.2
+        with:
+          server: https://captain.infra.plaxo.app
+          app: retro-board
+          token: '${{ secrets.CAPROVER_APP_TOKEN }}'
