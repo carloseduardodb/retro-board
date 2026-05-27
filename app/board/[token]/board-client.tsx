@@ -12,6 +12,9 @@ import { ParticipantsPanel } from '@/components/board/participants-panel'
 import { PrevActionsPanel } from '@/components/board/prev-actions-panel'
 import { AIPanel } from '@/components/board/ai-panel'
 import { RefreshCcw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card as CardUI, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 type BoardClientProps = {
   session: Session
@@ -28,10 +31,20 @@ export function BoardClient({
   initialSuggestions,
   initialPrevActions,
 }: BoardClientProps) {
-  const { participantId, participantName, isReady } = useParticipant()
+  const { participantId, participantName, updateName, isReady } = useParticipant()
   const [showAIPanel, setShowAIPanel] = useState(false)
   const [showPrevActions, setShowPrevActions] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
+  const [pendingOps, setPendingOps] = useState(0)
+
+  const trackOperation = async <T,>(operation: () => Promise<T>): Promise<T> => {
+    setPendingOps(n => n + 1)
+    try {
+      return await operation()
+    } finally {
+      setPendingOps(n => n - 1)
+    }
+  }
 
   const {
     cards,
@@ -91,12 +104,17 @@ export function BoardClient({
     )
   }
 
+  if (!participantName) {
+    return <NamePrompt onConfirm={updateName} />
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <BoardHeader
         token={session.token}
         participantsCount={participants.length}
         isConnected={isConnected}
+        isSyncing={pendingOps > 0}
         onShowPrevActions={() => setShowPrevActions(true)}
         onShowAI={() => setShowAIPanel(true)}
         onCloseRetro={handleCloseRetro}
@@ -114,6 +132,7 @@ export function BoardClient({
               participantId={participantId}
               participantName={participantName}
               broadcast={broadcast}
+              trackOperation={trackOperation}
             />
             <BoardColumn
               type="bad"
@@ -123,6 +142,7 @@ export function BoardClient({
               participantId={participantId}
               participantName={participantName}
               broadcast={broadcast}
+              trackOperation={trackOperation}
             />
             <BoardColumn
               type="ideas"
@@ -132,6 +152,7 @@ export function BoardClient({
               participantId={participantId}
               participantName={participantName}
               broadcast={broadcast}
+              trackOperation={trackOperation}
             />
             <ActionsColumn
               actionCards={actionCards}
@@ -139,6 +160,7 @@ export function BoardClient({
               participantId={participantId}
               participantName={participantName}
               broadcast={broadcast}
+              trackOperation={trackOperation}
             />
           </div>
         </div>
@@ -177,5 +199,41 @@ export function BoardClient({
         />
       )}
     </div>
+  )
+}
+
+function NamePrompt({ onConfirm }: { onConfirm: (name: string) => void }) {
+  const [name, setName] = useState('')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (name.trim()) {
+      onConfirm(name.trim())
+    }
+  }
+
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-background p-4">
+      <CardUI className="w-full max-w-sm shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-center">Como você quer ser chamado?</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              placeholder="Seu nome ou apelido"
+              value={name}
+              onChange={(e) => setName(e.target.value.slice(0, 20))}
+              maxLength={20}
+              autoFocus
+              className="text-base"
+            />
+            <Button type="submit" disabled={!name.trim()} className="w-full">
+              Entrar na Retro
+            </Button>
+          </form>
+        </CardContent>
+      </CardUI>
+    </main>
   )
 }

@@ -15,6 +15,7 @@ type ActionsColumnProps = {
   participantId: string
   participantName: string
   broadcast: (event: RealtimeEvent) => void
+  trackOperation: <T>(op: () => Promise<T>) => Promise<T>
 }
 
 export function ActionsColumn({
@@ -23,6 +24,7 @@ export function ActionsColumn({
   participantId,
   participantName,
   broadcast,
+  trackOperation,
 }: ActionsColumnProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [newText, setNewText] = useState('')
@@ -32,43 +34,64 @@ export function ActionsColumn({
   const handleAddAction = async () => {
     if (!newText.trim() || isSubmitting) return
 
+    const text = newText.trim()
+    const resp = responsible.trim() || null
     setIsSubmitting(true)
-    try {
-      const res = await fetch('/api/actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          session_token: sessionToken,
-          text: newText.trim(),
-          responsible: responsible.trim() || null,
-          author: participantName || 'Anônimo',
-          author_id: participantId,
-        }),
-      })
+    setNewText('')
+    setResponsible('')
+    setIsAdding(false)
 
-      if (res.ok) {
-        const { action } = await res.json()
-        broadcast({ type: 'action_added', payload: action })
-        setNewText('')
-        setResponsible('')
-        setIsAdding(false)
-      }
+    // Optimistic
+    const tempId = `temp-${Date.now()}`
+    const optimisticAction: ActionCard = {
+      id: tempId,
+      session_token: sessionToken,
+      text,
+      responsible: resp,
+      author: participantName || 'Anônimo',
+      author_id: participantId,
+      created_at: new Date().toISOString(),
+    }
+    broadcast({ type: 'action_added', payload: optimisticAction })
+
+    try {
+      await trackOperation(async () => {
+        const res = await fetch('/api/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_token: sessionToken,
+            text,
+            responsible: resp,
+            author: participantName || 'Anônimo',
+            author_id: participantId,
+          }),
+        })
+
+        if (res.ok) {
+          const { action } = await res.json()
+          broadcast({ type: 'action_deleted', payload: { id: tempId } })
+          broadcast({ type: 'action_added', payload: action })
+        } else {
+          broadcast({ type: 'action_deleted', payload: { id: tempId } })
+        }
+      })
     } catch (error) {
       console.error('Error adding action:', error)
+      broadcast({ type: 'action_deleted', payload: { id: tempId } })
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const handleDelete = async (actionId: string) => {
-    try {
-      const res = await fetch(`/api/actions?id=${actionId}`, {
-        method: 'DELETE',
-      })
+    // Optimistic
+    broadcast({ type: 'action_deleted', payload: { id: actionId } })
 
-      if (res.ok) {
-        broadcast({ type: 'action_deleted', payload: { id: actionId } })
-      }
+    try {
+      await trackOperation(async () => {
+        await fetch(`/api/actions?id=${actionId}`, { method: 'DELETE' })
+      })
     } catch (error) {
       console.error('Error deleting action:', error)
     }

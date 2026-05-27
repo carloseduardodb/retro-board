@@ -18,6 +18,7 @@ type BoardColumnProps = {
   participantId: string
   participantName: string
   broadcast: (event: RealtimeEvent) => void
+  trackOperation: <T>(op: () => Promise<T>) => Promise<T>
 }
 
 const columnStyles: Record<ColumnType, { bg: string; border: string; header: string }> = {
@@ -46,6 +47,7 @@ export function BoardColumn({
   participantId,
   participantName,
   broadcast,
+  trackOperation,
 }: BoardColumnProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [newText, setNewText] = useState('')
@@ -57,28 +59,51 @@ export function BoardColumn({
   const handleAddCard = async () => {
     if (!newText.trim() || isSubmitting) return
 
+    const text = newText.trim()
     setIsSubmitting(true)
-    try {
-      const res = await fetch('/api/cards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          session_token: sessionToken,
-          column_type: type,
-          text: newText.trim(),
-          author: participantName || 'Anônimo',
-          author_id: participantId,
-        }),
-      })
+    setNewText('')
+    setIsAdding(false)
 
-      if (res.ok) {
-        const { card } = await res.json()
-        broadcast({ type: 'card_added', payload: card })
-        setNewText('')
-        setIsAdding(false)
-      }
+    // Optimistic: create a temporary card locally
+    const tempId = `temp-${Date.now()}`
+    const optimisticCard: CardType = {
+      id: tempId,
+      session_token: sessionToken,
+      column_type: type,
+      text,
+      author: participantName || 'Anônimo',
+      author_id: participantId,
+      votes: 0,
+      voters: [],
+      created_at: new Date().toISOString(),
+    }
+    broadcast({ type: 'card_added', payload: optimisticCard })
+
+    try {
+      await trackOperation(async () => {
+        const res = await fetch('/api/cards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_token: sessionToken,
+            column_type: type,
+            text,
+            author: participantName || 'Anônimo',
+            author_id: participantId,
+          }),
+        })
+
+        if (res.ok) {
+          const { card } = await res.json()
+          broadcast({ type: 'card_deleted', payload: { id: tempId } })
+          broadcast({ type: 'card_added', payload: card })
+        } else {
+          broadcast({ type: 'card_deleted', payload: { id: tempId } })
+        }
+      })
     } catch (error) {
       console.error('Error adding card:', error)
+      broadcast({ type: 'card_deleted', payload: { id: tempId } })
     } finally {
       setIsSubmitting(false)
     }
@@ -87,35 +112,49 @@ export function BoardColumn({
   const handleVote = async (card: CardType) => {
     const hasVoted = card.voters.includes(participantId)
     
-    try {
-      const res = await fetch('/api/cards/vote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          card_id: card.id,
-          participant_id: participantId,
-          action: hasVoted ? 'unvote' : 'vote',
-        }),
-      })
+    // Optimistic update
+    const optimisticCard: CardType = {
+      ...card,
+      votes: hasVoted ? Math.max(0, card.votes - 1) : card.votes + 1,
+      voters: hasVoted
+        ? card.voters.filter(v => v !== participantId)
+        : [...card.voters, participantId],
+    }
+    broadcast({ type: 'card_updated', payload: optimisticCard })
 
-      if (res.ok) {
-        const { card: updatedCard } = await res.json()
-        broadcast({ type: 'card_updated', payload: updatedCard })
-      }
+    try {
+      await trackOperation(async () => {
+        const res = await fetch('/api/cards/vote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            card_id: card.id,
+            participant_id: participantId,
+            action: hasVoted ? 'unvote' : 'vote',
+          }),
+        })
+
+        if (res.ok) {
+          const { card: serverCard } = await res.json()
+          broadcast({ type: 'card_updated', payload: serverCard })
+        } else {
+          broadcast({ type: 'card_updated', payload: card })
+        }
+      })
     } catch (error) {
       console.error('Error voting:', error)
+      broadcast({ type: 'card_updated', payload: card })
     }
   }
 
   const handleDelete = async (cardId: string) => {
-    try {
-      const res = await fetch(`/api/cards?id=${cardId}`, {
-        method: 'DELETE',
-      })
+    // Optimistic: remove immediately
+    broadcast({ type: 'card_deleted', payload: { id: cardId } })
 
-      if (res.ok) {
-        broadcast({ type: 'card_deleted', payload: { id: cardId } })
-      }
+    try {
+      await trackOperation(async () => {
+        await fetch(`/api/cards?id=${cardId}`, { method: 'DELETE' })
+      })
     } catch (error) {
       console.error('Error deleting card:', error)
     }
@@ -221,10 +260,7 @@ function RetroCard({ card, participantId, onVote, onDelete }: RetroCardProps) {
     <Card className="group">
       <CardContent className="p-3">
         <p className="text-sm whitespace-pre-wrap break-words">{card.text}</p>
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
-          <span className="text-xs text-muted-foreground truncate max-w-[100px]">
-            {card.author}
-          </span>
+        <div className="flex items-center justify-end mt-2 pt-2 border-t border-border/50">
           <div className="flex items-center gap-1">
             {isOwner && (
               <Button

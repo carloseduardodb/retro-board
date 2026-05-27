@@ -24,6 +24,7 @@ type BoardHeaderProps = {
   token: string
   participantsCount: number
   isConnected: boolean
+  isSyncing: boolean
   onShowPrevActions: () => void
   onShowAI: () => void
   onCloseRetro: () => void
@@ -33,6 +34,7 @@ export function BoardHeader({
   token,
   participantsCount,
   isConnected,
+  isSyncing,
   onShowPrevActions,
   onShowAI,
   onCloseRetro,
@@ -82,6 +84,14 @@ export function BoardHeader({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Syncing indicator */}
+          {isSyncing && (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <span className="hidden sm:inline text-xs">Salvando...</span>
+            </div>
+          )}
+
           {/* Connection status */}
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`} />
