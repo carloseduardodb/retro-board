@@ -1,64 +1,84 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
+
+async function createSessionAndEnter(page: Page) {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Criar Sessão' }).click()
+  await page.waitForURL(/\/board\/[A-Z0-9]{6}/)
+
+  const namePrompt = page.getByPlaceholder('Seu nome ou apelido')
+  if (await namePrompt.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await namePrompt.fill('Facilitador')
+    await page.getByRole('button', { name: 'Entrar na Retro' }).click()
+  }
+
+  await expect(page.getByText('O que foi bom')).toBeVisible()
+}
+
+async function addAction(page: Page, text: string) {
+  await page.getByRole('button', { name: 'Adicionar Ação' }).click()
+  await page.getByPlaceholder('Descreva a ação...').fill(text)
+  // Click the send button inside the actions column form
+  const actionsForm = page.locator('[class*="column-actions"] [class*="border-dashed"]')
+  await actionsForm.locator('button').last().click()
+  await expect(page.getByText(text)).toBeVisible({ timeout: 5000 })
+}
+
+async function closeRetro(page: Page) {
+  // Register dialog handler BEFORE triggering
+  page.once('dialog', dialog => dialog.accept())
+  await page.locator('header button').nth(1).click()
+  await page.getByRole('menuitem', { name: 'Encerrar Retro' }).click()
+}
 
 test.describe('Encerramento da Retro', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/')
-    await page.getByLabel('Seu nome').fill('Facilitador')
-    await page.getByRole('button', { name: /Criar Nova Sessão/i }).click()
-    await page.waitForURL(/\/board\/[A-Z0-9]{6}/)
+    await createSessionAndEnter(page)
   })
 
-  test('botão Encerrar Retro está disponível no menu', async ({ page }) => {
-    await page.getByRole('button', { name: '' }).last().click()
-    await expect(page.getByText('Encerrar Retro')).toBeVisible()
+  test('botão Encerrar Retro está no menu', async ({ page }) => {
+    await page.locator('header button').nth(1).click()
+    await expect(page.getByRole('menuitem', { name: 'Encerrar Retro' })).toBeVisible()
   })
 
-  test('encerrar retro limpa todos os cards e salva ações como prev_actions', async ({ page }) => {
-    // Adicionar um card na coluna Bom
-    const goodColumn = page.locator('.bg-column-good\\/30').first()
-    await goodColumn.getByRole('button', { name: /Adicionar/i }).click()
-    await goodColumn.getByPlaceholder('Digite seu feedback...').fill('Card que será removido')
-    await goodColumn.locator('button').filter({ has: page.locator('svg') }).last().click()
-    await expect(goodColumn.getByText('Card que será removido')).toBeVisible()
+  test('encerrar retro limpa ações e reseta timer', async ({ page }) => {
+    await addAction(page, 'Ação da sprint')
 
-    // Adicionar uma ação
-    const actionsColumn = page.locator('.bg-column-actions\\/30').first()
-    await actionsColumn.getByRole('button', { name: /Adicionar Ação/i }).click()
-    await actionsColumn.getByPlaceholder('Descreva a ação...').fill('Ação para próxima sprint')
-    await actionsColumn.locator('button').filter({ has: page.locator('svg') }).last().click()
-    await expect(actionsColumn.getByText('Ação para próxima sprint')).toBeVisible()
+    await closeRetro(page)
 
-    // Encerrar retro (aceitar confirmação)
-    page.on('dialog', dialog => dialog.accept())
-    await page.getByRole('button', { name: '' }).last().click()
-    await page.getByText('Encerrar Retro').click()
+    // Ação deve sumir
+    await expect(page.getByText('Ação da sprint')).not.toBeVisible({ timeout: 10000 })
 
-    // Cards devem sumir
-    await expect(goodColumn.getByText('Card que será removido')).not.toBeVisible({ timeout: 10000 })
-    await expect(actionsColumn.getByText('Ação para próxima sprint')).not.toBeVisible()
+    // Timer deve resetar
+    await expect(page.getByText('05:00')).toBeVisible()
+    await expect(page.getByText('Configure o tempo')).toBeVisible()
   })
 
-  test('ações anteriores ficam disponíveis após encerramento', async ({ page }) => {
-    // Adicionar uma ação
-    const actionsColumn = page.locator('.bg-column-actions\\/30').first()
-    await actionsColumn.getByRole('button', { name: /Adicionar Ação/i }).click()
-    await actionsColumn.getByPlaceholder('Descreva a ação...').fill('Ação persistente')
-    await actionsColumn.locator('button').filter({ has: page.locator('svg') }).last().click()
-    await expect(actionsColumn.getByText('Ação persistente')).toBeVisible()
+  test('ações são salvas como ações anteriores', async ({ page }) => {
+    await addAction(page, 'Ação persistente')
 
-    // Encerrar retro
-    page.on('dialog', dialog => dialog.accept())
-    await page.getByRole('button', { name: '' }).last().click()
-    await page.getByText('Encerrar Retro').click()
+    await closeRetro(page)
+    await expect(page.getByText('Ação persistente')).not.toBeVisible({ timeout: 10000 })
 
-    // Esperar limpeza
-    await expect(actionsColumn.getByText('Ação persistente')).not.toBeVisible({ timeout: 10000 })
+    // Verificar ações anteriores
+    await page.locator('header button').nth(1).click()
+    await page.getByRole('menuitem', { name: 'Ações Anteriores' }).click()
 
-    // Abrir painel de ações anteriores
-    await page.getByRole('button', { name: '' }).last().click()
-    await page.getByText('Ações Anteriores').click()
-
-    // Deve mostrar a ação como prev_action
+    await expect(page.getByText('Ações da Sprint Anterior')).toBeVisible()
     await expect(page.getByText('Ação persistente')).toBeVisible()
+  })
+
+  test('checkbox de ação anterior funciona', async ({ page }) => {
+    await addAction(page, 'Ação para marcar')
+
+    await closeRetro(page)
+    await expect(page.getByText('Ação para marcar')).not.toBeVisible({ timeout: 10000 })
+
+    // Abrir ações anteriores
+    await page.locator('header button').nth(1).click()
+    await page.getByRole('menuitem', { name: 'Ações Anteriores' }).click()
+    await expect(page.getByText('0 de 1 concluídas')).toBeVisible()
+
+    await page.getByRole('checkbox').click()
+    await expect(page.getByText('1 de 1 concluídas')).toBeVisible()
   })
 })

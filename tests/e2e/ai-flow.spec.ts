@@ -1,86 +1,108 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
+
+async function createSessionAndEnter(page: Page) {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Criar Sessão' }).click()
+  await page.waitForURL(/\/board\/[A-Z0-9]{6}/)
+
+  const namePrompt = page.getByPlaceholder('Seu nome ou apelido')
+  if (await namePrompt.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await namePrompt.fill('Facilitador')
+    await page.getByRole('button', { name: 'Entrar na Retro' }).click()
+  }
+
+  await expect(page.getByText('O que foi bom')).toBeVisible()
+}
 
 test.describe('Fluxo de IA', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/')
-    await page.getByLabel('Seu nome').fill('Facilitador')
-    await page.getByRole('button', { name: /Criar Nova Sessão/i }).click()
-    await page.waitForURL(/\/board\/[A-Z0-9]{6}/)
+    await createSessionAndEnter(page)
   })
 
-  test('abre painel de IA e exibe prompt para copiar', async ({ page }) => {
-    // Abrir menu e clicar em IA
-    await page.getByRole('button', { name: '' }).last().click() // menu button
-    await page.getByText('Gerar Ações com IA').click()
+  test('abre painel de IA com prompt para copiar', async ({ page }) => {
+    // Open dropdown menu (the outline button in the header)
+    await page.locator('header button').nth(1).click()
+    await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
 
-    // Deve exibir o painel com o prompt
     await expect(page.getByText('Sugestões via IA Externa')).toBeVisible()
     await expect(page.getByText('Passo 1 — Copiar prompt')).toBeVisible()
-    await expect(page.getByRole('button', { name: /Copiar Prompt/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Colar Retorno/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Copiar Prompt' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Colar Retorno' })).toBeVisible()
   })
 
   test('navega para tela de colar JSON', async ({ page }) => {
-    await page.getByRole('button', { name: '' }).last().click()
-    await page.getByText('Gerar Ações com IA').click()
-
-    await page.getByRole('button', { name: /Colar Retorno/i }).click()
+    await page.locator('header button').nth(1).click()
+    await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
+    await page.getByRole('button', { name: 'Colar Retorno' }).click()
 
     await expect(page.getByText('Passo 2 — Colar retorno da IA')).toBeVisible()
-    await expect(page.getByRole('button', { name: /Confirmar/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Voltar/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Confirmar' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Voltar' })).toBeVisible()
   })
 
-  test('rejeita JSON inválido com mensagem de erro', async ({ page }) => {
-    await page.getByRole('button', { name: '' }).last().click()
-    await page.getByText('Gerar Ações com IA').click()
-    await page.getByRole('button', { name: /Colar Retorno/i }).click()
+  test('rejeita JSON inválido', async ({ page }) => {
+    await page.locator('header button').nth(1).click()
+    await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
+    await page.getByRole('button', { name: 'Colar Retorno' }).click()
 
-    // Colar texto inválido
     await page.locator('textarea').fill('isso não é json')
-    await page.getByRole('button', { name: /Confirmar/i }).click()
+    await page.getByRole('button', { name: 'Confirmar' }).click()
 
     await expect(page.getByText(/JSON inválido/i)).toBeVisible()
   })
 
   test('aceita JSON válido e cria sugestões pendentes', async ({ page }) => {
-    await page.getByRole('button', { name: '' }).last().click()
-    await page.getByText('Gerar Ações com IA').click()
-    await page.getByRole('button', { name: /Colar Retorno/i }).click()
+    await page.locator('header button').nth(1).click()
+    await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
+    await page.getByRole('button', { name: 'Colar Retorno' }).click()
 
-    // Colar JSON válido
-    const validJson = JSON.stringify([
-      { id: '1', text: 'Implementar code review obrigatório', responsible: 'Tech Lead' },
+    const json = JSON.stringify([
+      { id: '1', text: 'Não fazer deploy na sexta', responsible: 'Tech Lead' },
       { id: '2', text: 'Daily mais curta', responsible: null },
     ])
-    await page.locator('textarea').fill(validJson)
-    await page.getByRole('button', { name: /Confirmar/i }).click()
+    await page.locator('textarea').fill(json)
+    await page.getByRole('button', { name: 'Confirmar' }).click()
 
-    // Deve mostrar sugestões pendentes
     await expect(page.getByText('Sugestões Pendentes')).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('Implementar code review obrigatório')).toBeVisible()
+    await expect(page.getByText('Não fazer deploy na sexta')).toBeVisible()
     await expect(page.getByText('Daily mais curta')).toBeVisible()
   })
 
-  test('aprova sugestão e cria card de ação', async ({ page }) => {
-    await page.getByRole('button', { name: '' }).last().click()
-    await page.getByText('Gerar Ações com IA').click()
-    await page.getByRole('button', { name: /Colar Retorno/i }).click()
+  test('aprovar sugestão cria card na coluna Ações', async ({ page }) => {
+    await page.locator('header button').nth(1).click()
+    await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
+    await page.getByRole('button', { name: 'Colar Retorno' }).click()
 
-    const validJson = JSON.stringify([
-      { id: '1', text: 'Ação aprovável', responsible: 'Time' },
+    const json = JSON.stringify([
+      { id: '1', text: 'Ação para aprovar', responsible: 'Time' },
     ])
-    await page.locator('textarea').fill(validJson)
-    await page.getByRole('button', { name: /Confirmar/i }).click()
+    await page.locator('textarea').fill(json)
+    await page.getByRole('button', { name: 'Confirmar' }).click()
 
-    // Aprovar
-    await expect(page.getByText('Ação aprovável')).toBeVisible({ timeout: 10000 })
-    await page.getByRole('button', { name: /Aprovar/i }).click()
+    await expect(page.getByText('Ação para aprovar')).toBeVisible({ timeout: 10000 })
+    await page.getByRole('button', { name: 'Aprovar' }).click()
 
-    // Fechar painel e verificar que a ação aparece na coluna
-    await page.locator('button').filter({ has: page.locator('svg.lucide-x') }).first().click()
-    
-    const actionsColumn = page.locator('.bg-column-actions\\/30').first()
-    await expect(actionsColumn.getByText('Ação aprovável')).toBeVisible()
+    // Fechar painel
+    await page.locator('.fixed button:has(svg)').first().click()
+
+    // Verificar na coluna Ações
+    await expect(page.locator('[class*="column-actions"]').getByText('Ação para aprovar')).toBeVisible()
+  })
+
+  test('rejeitar sugestão remove da lista', async ({ page }) => {
+    await page.locator('header button').nth(1).click()
+    await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
+    await page.getByRole('button', { name: 'Colar Retorno' }).click()
+
+    const json = JSON.stringify([
+      { id: '1', text: 'Ação para rejeitar', responsible: null },
+    ])
+    await page.locator('textarea').fill(json)
+    await page.getByRole('button', { name: 'Confirmar' }).click()
+
+    await expect(page.getByText('Ação para rejeitar')).toBeVisible({ timeout: 10000 })
+    await page.getByRole('button', { name: 'Rejeitar' }).click()
+
+    await expect(page.getByText('Ação para rejeitar')).not.toBeVisible()
   })
 })
