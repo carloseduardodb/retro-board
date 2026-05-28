@@ -235,7 +235,11 @@ export function BoardClient({
             sessionToken={session.token}
             broadcast={broadcast}
           />
-          <ParticipantsPanel participants={participants} />
+          <ParticipantsPanel
+            participants={participants}
+            currentParticipantId={participantId}
+            onRename={updateName}
+          />
         </div>
       </div>
 
