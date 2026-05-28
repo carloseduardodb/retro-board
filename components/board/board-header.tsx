@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { 
   DropdownMenu, 
@@ -16,7 +17,9 @@ import {
   Sparkles, 
   MoreHorizontal,
   Home,
-  StopCircle
+  StopCircle,
+  Moon,
+  Sun
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -40,6 +43,7 @@ export function BoardHeader({
   onCloseRetro,
 }: BoardHeaderProps) {
   const [copied, setCopied] = useState(false)
+  const { theme, setTheme } = useTheme()
 
   const copyLink = async () => {
     const url = `${window.location.origin}/board/${token}`
@@ -103,6 +107,18 @@ export function BoardHeader({
             <Users className="w-4 h-4" />
             <span>{participantsCount}</span>
           </div>
+
+          {/* Theme toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          >
+            <Sun className="w-4 h-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute w-4 h-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Alternar tema</span>
+          </Button>
 
           {/* Actions dropdown */}
           <DropdownMenu>
