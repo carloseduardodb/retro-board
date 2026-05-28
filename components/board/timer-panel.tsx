@@ -17,6 +17,7 @@ export function TimerPanel({ session, sessionToken, broadcast }: TimerPanelProps
   const [displayTime, setDisplayTime] = useState('00:00')
   const [isUpdating, setIsUpdating] = useState(false)
   const hasPlayedExpiredSound = useRef(false)
+  const hasCalledFinish = useRef(false)
   const tickTockRef = useRef<{ audioContext: AudioContext; interval: ReturnType<typeof setInterval> } | null>(null)
 
   const status = session.timer_status || 'configuring'
@@ -137,19 +138,34 @@ export function TimerPanel({ session, sessionToken, broadcast }: TimerPanelProps
           hasPlayedExpiredSound.current = true
           playExpirySound()
         }
-        handleTimerAction('finish')
+        if (!hasCalledFinish.current) {
+          hasCalledFinish.current = true
+          fetch('/api/timer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_token: sessionToken, action: 'finish' }),
+          })
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+              if (data?.session) {
+                broadcast({ type: 'timer_update', payload: data.session })
+              }
+            })
+            .catch(() => {})
+        }
       }
     }
 
     updateDisplay()
     const interval = setInterval(updateDisplay, 1000)
     return () => clearInterval(interval)
-  }, [calculateRemaining, status, playExpirySound, startTickTock, stopTickTock])
+  }, [calculateRemaining, status, playExpirySound, startTickTock, stopTickTock, sessionToken, broadcast])
 
   // Reset sound flag when timer leaves finished state
   useEffect(() => {
     if (status !== 'finished') {
       hasPlayedExpiredSound.current = false
+      hasCalledFinish.current = false
     }
   }, [status])
 
