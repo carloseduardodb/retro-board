@@ -9,6 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Create deploy.tar
+        run: tar -cf deploy.tar --exclude=node_modules --exclude=.next --exclude=.git .
+
       - uses: caprover/deploy-from-github@v1.1.2
         with:
           server: https://captain.infra.plaxo.app
