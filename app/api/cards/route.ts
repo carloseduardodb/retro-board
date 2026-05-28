@@ -101,3 +101,71 @@ export async function DELETE(request: Request) {
 
   return NextResponse.json({ success: true })
 }
+
+export async function PATCH(request: Request) {
+  const supabase = await createClient()
+
+  try {
+    const body = await request.json()
+    const { id, text, column_type } = body
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'invalid_payload', message: 'ID é obrigatório' },
+        { status: 400 }
+      )
+    }
+
+    const updateData: Record<string, unknown> = {}
+
+    if (text !== undefined) {
+      if (!text.trim() || text.length > 500) {
+        return NextResponse.json(
+          { error: 'invalid_payload', message: 'Texto inválido (vazio ou acima de 500 caracteres)' },
+          { status: 400 }
+        )
+      }
+      updateData.text = text.trim()
+    }
+
+    if (column_type !== undefined) {
+      if (!['good', 'bad', 'ideas'].includes(column_type)) {
+        return NextResponse.json(
+          { error: 'invalid_payload', message: 'Coluna inválida' },
+          { status: 400 }
+        )
+      }
+      updateData.column_type = column_type
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: 'invalid_payload', message: 'Nenhum campo para atualizar' },
+        { status: 400 }
+      )
+    }
+
+    const { data, error } = await supabase
+      .from('cards')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating card:', error)
+      return NextResponse.json(
+        { error: 'Falha ao atualizar card' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({ card: data })
+  } catch (error) {
+    console.error('Error in PATCH /api/cards:', error)
+    return NextResponse.json(
+      { error: 'Erro interno do servidor' },
+      { status: 500 }
+    )
+  }
+}

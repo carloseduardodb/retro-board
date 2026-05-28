@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useParticipant } from '@/hooks/use-participant'
 import { useRealtime } from '@/hooks/use-realtime'
 import type { Session, Card, ActionCard, Suggestion, PrevAction } from '@/lib/types/database'
@@ -15,6 +15,7 @@ import { RefreshCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card as CardUI, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core'
 
 type BoardClientProps = {
   session: Session
@@ -70,6 +71,59 @@ export function BoardClient({
   const badCards = cards.filter(c => c.column_type === 'bad')
   const ideasCards = cards.filter(c => c.column_type === 'ideas')
 
+  // DnD setup
+  const [activeCard, setActiveCard] = useState<Card | null>(null)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  )
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const card = cards.find(c => c.id === event.active.id)
+    if (card) setActiveCard(card)
+  }
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    setActiveCard(null)
+    const { active, over } = event
+    if (!over) return
+
+    const cardId = active.id as string
+    const targetColumn = over.id as string
+
+    // Only allow dropping on column droppables (good, bad, ideas)
+    if (!['good', 'bad', 'ideas'].includes(targetColumn)) return
+
+    const card = cards.find(c => c.id === cardId)
+    if (!card || card.column_type === targetColumn) return
+
+    // Optimistic move
+    const movedCard: Card = { ...card, column_type: targetColumn as 'good' | 'bad' | 'ideas' }
+    broadcast({ type: 'card_deleted', payload: { id: card.id } })
+    broadcast({ type: 'card_added', payload: movedCard })
+
+    try {
+      await trackOperation(async () => {
+        const res = await fetch('/api/cards', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: card.id, column_type: targetColumn }),
+        })
+
+        if (res.ok) {
+          const { card: serverCard } = await res.json()
+          broadcast({ type: 'card_deleted', payload: { id: movedCard.id } })
+          broadcast({ type: 'card_added', payload: serverCard })
+        } else {
+          broadcast({ type: 'card_deleted', payload: { id: movedCard.id } })
+          broadcast({ type: 'card_added', payload: card })
+        }
+      })
+    } catch {
+      broadcast({ type: 'card_deleted', payload: { id: movedCard.id } })
+      broadcast({ type: 'card_added', payload: card })
+    }
+  }, [cards, broadcast, trackOperation])
+
   const handleCloseRetro = async () => {
     if (isClosing) return
     const confirmed = window.confirm(
@@ -123,46 +177,55 @@ export function BoardClient({
       <div className="flex-1 flex flex-col lg:flex-row">
         {/* Main Board Area */}
         <div className="flex-1 p-4 overflow-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-full min-h-[600px]">
-            <BoardColumn
-              type="good"
-              title="O que foi bom"
-              cards={goodCards}
-              sessionToken={session.token}
-              participantId={participantId}
-              participantName={participantName}
-              broadcast={broadcast}
-              trackOperation={trackOperation}
-            />
-            <BoardColumn
-              type="bad"
-              title="O que pode melhorar"
-              cards={badCards}
-              sessionToken={session.token}
-              participantId={participantId}
-              participantName={participantName}
-              broadcast={broadcast}
-              trackOperation={trackOperation}
-            />
-            <BoardColumn
-              type="ideas"
-              title="Ideias"
-              cards={ideasCards}
-              sessionToken={session.token}
-              participantId={participantId}
-              participantName={participantName}
-              broadcast={broadcast}
-              trackOperation={trackOperation}
-            />
-            <ActionsColumn
-              actionCards={actionCards}
-              sessionToken={session.token}
-              participantId={participantId}
-              participantName={participantName}
-              broadcast={broadcast}
-              trackOperation={trackOperation}
-            />
-          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-full min-h-[600px]">
+              <BoardColumn
+                type="good"
+                title="O que foi bom"
+                cards={goodCards}
+                sessionToken={session.token}
+                participantId={participantId}
+                participantName={participantName}
+                broadcast={broadcast}
+                trackOperation={trackOperation}
+              />
+              <BoardColumn
+                type="bad"
+                title="O que pode melhorar"
+                cards={badCards}
+                sessionToken={session.token}
+                participantId={participantId}
+                participantName={participantName}
+                broadcast={broadcast}
+                trackOperation={trackOperation}
+              />
+              <BoardColumn
+                type="ideas"
+                title="Ideias"
+                cards={ideasCards}
+                sessionToken={session.token}
+                participantId={participantId}
+                participantName={participantName}
+                broadcast={broadcast}
+                trackOperation={trackOperation}
+              />
+              <ActionsColumn
+                actionCards={actionCards}
+                sessionToken={session.token}
+                participantId={participantId}
+                participantName={participantName}
+                broadcast={broadcast}
+                trackOperation={trackOperation}
+              />
+            </div>
+            <DragOverlay>
+              {activeCard && (
+                <div className="bg-card border rounded-lg p-3 shadow-lg opacity-90 max-w-[250px]">
+                  <p className="text-sm">{activeCard.text}</p>
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
         </div>
 
         {/* Right Sidebar */}
