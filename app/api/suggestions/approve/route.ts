@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   
   try {
     const body = await request.json()
-    const { suggestion_id, session_token } = body
+    const { suggestion_id, session_token, text, responsible } = body
 
     if (!suggestion_id || !session_token) {
       return NextResponse.json(
@@ -29,6 +29,10 @@ export async function POST(request: Request) {
       )
     }
 
+    // Use edited values if provided, otherwise use original
+    const finalText = text || suggestion.text
+    const finalResponsible = responsible !== undefined ? responsible : suggestion.responsible
+
     // Update suggestion status
     const { data: updatedSuggestion, error: updateError } = await supabase
       .from('suggestions')
@@ -45,13 +49,13 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create action card from suggestion
+    // Create action card from suggestion (with edited values)
     const { data: action, error: actionError } = await supabase
       .from('action_cards')
       .insert({
         session_token,
-        text: suggestion.text,
-        responsible: suggestion.responsible,
+        text: finalText,
+        responsible: finalResponsible,
         author: 'IA',
         author_id: 'ai-system',
       })

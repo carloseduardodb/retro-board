@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { X, Sparkles, Check, X as XIcon, Copy, ClipboardPaste, AlertCircle } from 'lucide-react'
+import { X, Sparkles, Check, X as XIcon, Copy, ClipboardPaste, AlertCircle, Pencil } from 'lucide-react'
 import type { Card as CardType, ActionCard, Suggestion, RealtimeEvent } from '@/lib/types/database'
 
 type AIPanelProps = {
@@ -158,7 +159,7 @@ FORMATO DE RESPOSTA (JSON array):
     }
   }
 
-  const handleApproveSuggestion = async (suggestion: Suggestion) => {
+  const handleApproveSuggestion = async (suggestion: Suggestion, editedText?: string, editedResponsible?: string | null) => {
     try {
       const res = await fetch('/api/suggestions/approve', {
         method: 'POST',
@@ -166,6 +167,8 @@ FORMATO DE RESPOSTA (JSON array):
         body: JSON.stringify({
           suggestion_id: suggestion.id,
           session_token: sessionToken,
+          text: editedText ?? suggestion.text,
+          responsible: editedResponsible !== undefined ? editedResponsible : suggestion.responsible,
         }),
       })
 
@@ -291,43 +294,95 @@ FORMATO DE RESPOSTA (JSON array):
             </div>
           )}
 
-          {/* Pending Suggestions (Step 4 - Approve/Reject) */}
+          {/* Pending Suggestions (Step 4 - Edit/Approve/Reject) */}
           {pendingSuggestions.length > 0 && (
             <div className="mt-6 space-y-3 border-t border-border pt-4">
               <h3 className="font-medium text-sm">Sugestões Pendentes ({pendingSuggestions.length})</h3>
               {pendingSuggestions.map((suggestion) => (
-                <Card key={suggestion.id}>
-                  <CardContent className="p-3">
-                    <p className="text-sm">{suggestion.text}</p>
-                    {suggestion.responsible && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Responsável: {suggestion.responsible}
-                      </p>
-                    )}
-                    <div className="flex justify-end gap-2 mt-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRejectSuggestion(suggestion.id)}
-                      >
-                        <XIcon className="w-4 h-4 mr-1" />
-                        Rejeitar
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleApproveSuggestion(suggestion)}
-                      >
-                        <Check className="w-4 h-4 mr-1" />
-                        Aprovar
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <SuggestionCard
+                  key={suggestion.id}
+                  suggestion={suggestion}
+                  onApprove={(text, responsible) => handleApproveSuggestion(suggestion, text, responsible)}
+                  onReject={() => handleRejectSuggestion(suggestion.id)}
+                />
               ))}
             </div>
           )}
         </div>
       </div>
     </div>
+  )
+}
+
+type SuggestionCardProps = {
+  suggestion: Suggestion
+  onApprove: (text: string, responsible: string | null) => void
+  onReject: () => void
+}
+
+function SuggestionCard({ suggestion, onApprove, onReject }: SuggestionCardProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editText, setEditText] = useState(suggestion.text)
+  const [editResponsible, setEditResponsible] = useState(suggestion.responsible || '')
+
+  const handleApprove = () => {
+    onApprove(editText.trim() || suggestion.text, editResponsible.trim() || null)
+  }
+
+  if (isEditing) {
+    return (
+      <Card>
+        <CardContent className="p-3 space-y-2">
+          <Textarea
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            className="min-h-[60px] resize-none text-sm"
+            maxLength={500}
+          />
+          <Input
+            placeholder="Responsável (opcional)"
+            value={editResponsible}
+            onChange={(e) => setEditResponsible(e.target.value)}
+            className="text-sm"
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={handleApprove} disabled={!editText.trim()}>
+              <Check className="w-4 h-4 mr-1" />
+              Aprovar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-3">
+        <p className="text-sm">{suggestion.text}</p>
+        {suggestion.responsible && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Responsável: {suggestion.responsible}
+          </p>
+        )}
+        <div className="flex justify-end gap-2 mt-3">
+          <Button variant="outline" size="sm" onClick={onReject}>
+            <XIcon className="w-4 h-4 mr-1" />
+            Rejeitar
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+            <Pencil className="w-4 h-4 mr-1" />
+            Editar
+          </Button>
+          <Button size="sm" onClick={handleApprove}>
+            <Check className="w-4 h-4 mr-1" />
+            Aprovar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

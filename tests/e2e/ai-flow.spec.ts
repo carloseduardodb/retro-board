@@ -89,6 +89,37 @@ test.describe('Fluxo de IA', () => {
     await expect(page.locator('[class*="column-actions"]').getByText('Ação para aprovar')).toBeVisible()
   })
 
+  test('editar sugestão antes de aprovar', async ({ page }) => {
+    await page.locator('header button').nth(1).click()
+    await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
+    await page.getByRole('button', { name: 'Colar Retorno' }).click()
+
+    const json = JSON.stringify([
+      { id: '1', text: 'Texto original', responsible: 'PO' },
+    ])
+    await page.locator('textarea').fill(json)
+    await page.getByRole('button', { name: 'Confirmar' }).click()
+
+    await expect(page.getByText('Texto original')).toBeVisible({ timeout: 10000 })
+
+    // Clicar Editar
+    await page.getByRole('button', { name: 'Editar' }).click()
+
+    // Editar texto e responsável
+    await page.locator('.fixed textarea').fill('Texto editado pelo time')
+    await page.getByPlaceholder('Responsável (opcional)').fill('Tech Lead')
+
+    // Aprovar com edição
+    await page.getByRole('button', { name: 'Aprovar' }).click()
+
+    // Fechar painel
+    await page.locator('.fixed button:has(svg)').first().click()
+
+    // Verificar que o texto editado aparece na coluna Ações
+    await expect(page.locator('[class*="column-actions"]').getByText('Texto editado pelo time')).toBeVisible()
+    await expect(page.locator('[class*="column-actions"]').getByText('Tech Lead')).toBeVisible()
+  })
+
   test('rejeitar sugestão remove da lista', async ({ page }) => {
     await page.locator('header button').nth(1).click()
     await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
