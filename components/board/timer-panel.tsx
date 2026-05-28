@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Play, Pause, Plus, Timer } from 'lucide-react'
+import { Play, Pause, Plus, Timer, RotateCcw } from 'lucide-react'
 import type { Session, RealtimeEvent } from '@/lib/types/database'
 
 type TimerPanelProps = {
@@ -17,6 +17,7 @@ export function TimerPanel({ session, sessionToken, broadcast }: TimerPanelProps
   const [displayTime, setDisplayTime] = useState('00:00')
   const [isUpdating, setIsUpdating] = useState(false)
   const hasPlayedExpiredSound = useRef(false)
+  const tickTockRef = useRef<{ audioContext: AudioContext; interval: ReturnType<typeof setInterval> } | null>(null)
 
   const status = session.timer_status || 'configuring'
   const minutes = session.timer_minutes || 5
@@ -37,6 +38,52 @@ export function TimerPanel({ session, sessionToken, broadcast }: TimerPanelProps
     }
     return 0
   }, [status, session.timer_ends_at, session.timer_remaining_seconds, minutes])
+
+  // Play tick-tock sound
+  const startTickTock = useCallback(() => {
+    if (tickTockRef.current) return // already playing
+    try {
+      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      let isTick = true
+
+      const playTick = () => {
+        const oscillator = audioContext.createOscillator()
+        const gainNode = audioContext.createGain()
+        oscillator.connect(gainNode)
+        gainNode.connect(audioContext.destination)
+
+        // Tick = higher pitch, Tock = lower pitch
+        oscillator.frequency.value = isTick ? 1200 : 800
+        oscillator.type = 'sine'
+        gainNode.gain.value = 0.15
+
+        oscillator.start()
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.08)
+        oscillator.stop(audioContext.currentTime + 0.08)
+
+        isTick = !isTick
+      }
+
+      playTick() // play immediately
+      const interval = setInterval(playTick, 500)
+      tickTockRef.current = { audioContext, interval }
+    } catch {
+      // Browser blocked autoplay
+    }
+  }, [])
+
+  const stopTickTock = useCallback(() => {
+    if (tickTockRef.current) {
+      clearInterval(tickTockRef.current.interval)
+      tickTockRef.current.audioContext.close()
+      tickTockRef.current = null
+    }
+  }, [])
+
+  // Cleanup tick-tock on unmount
+  useEffect(() => {
+    return () => stopTickTock()
+  }, [stopTickTock])
 
   // Play expiry sound
   const playExpirySound = useCallback(() => {
@@ -76,8 +123,16 @@ export function TimerPanel({ session, sessionToken, broadcast }: TimerPanelProps
       const secs = remaining % 60
       setDisplayTime(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`)
 
+      // Tick-tock in the last 15 seconds
+      if (status === 'running' && remaining > 0 && remaining <= 15) {
+        startTickTock()
+      } else {
+        stopTickTock()
+      }
+
       // Check if timer just expired
       if (status === 'running' && remaining === 0) {
+        stopTickTock()
         if (!hasPlayedExpiredSound.current) {
           hasPlayedExpiredSound.current = true
           playExpirySound()
@@ -89,7 +144,7 @@ export function TimerPanel({ session, sessionToken, broadcast }: TimerPanelProps
     updateDisplay()
     const interval = setInterval(updateDisplay, 1000)
     return () => clearInterval(interval)
-  }, [calculateRemaining, status, playExpirySound])
+  }, [calculateRemaining, status, playExpirySound, startTickTock, stopTickTock])
 
   // Reset sound flag when timer leaves finished state
   useEffect(() => {
@@ -98,7 +153,7 @@ export function TimerPanel({ session, sessionToken, broadcast }: TimerPanelProps
     }
   }, [status])
 
-  const handleTimerAction = async (action: 'start' | 'pause' | 'resume' | 'add' | 'finish' | 'set', actionMinutes?: number) => {
+  const handleTimerAction = async (action: 'start' | 'pause' | 'resume' | 'add' | 'finish' | 'set' | 'reset', actionMinutes?: number) => {
     if (isUpdating && action !== 'finish') return
     setIsUpdating(true)
 
@@ -207,6 +262,14 @@ export function TimerPanel({ session, sessionToken, broadcast }: TimerPanelProps
                 <Plus className="w-4 h-4 mr-1" />
                 1 min
               </Button>
+              <Button
+                onClick={() => handleTimerAction('reset')}
+                disabled={isUpdating}
+                variant="ghost"
+                size="sm"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </Button>
             </>
           )}
 
@@ -230,19 +293,37 @@ export function TimerPanel({ session, sessionToken, broadcast }: TimerPanelProps
                 <Plus className="w-4 h-4 mr-1" />
                 1 min
               </Button>
+              <Button
+                onClick={() => handleTimerAction('reset')}
+                disabled={isUpdating}
+                variant="ghost"
+                size="sm"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </Button>
             </>
           )}
 
           {isFinished && (
-            <Button
-              onClick={() => handleTimerAction('add')}
-              disabled={isUpdating}
-              className="flex-1"
-              size="sm"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              +1 min
-            </Button>
+            <>
+              <Button
+                onClick={() => handleTimerAction('add')}
+                disabled={isUpdating}
+                className="flex-1"
+                size="sm"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                +1 min
+              </Button>
+              <Button
+                onClick={() => handleTimerAction('reset')}
+                disabled={isUpdating}
+                variant="ghost"
+                size="sm"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </Button>
+            </>
           )}
         </div>
       </CardContent>

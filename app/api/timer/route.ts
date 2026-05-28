@@ -143,6 +143,15 @@ export async function POST(request: Request) {
         break
       }
 
+      case 'reset': {
+        updateData = {
+          timer_status: 'finished',
+          timer_ends_at: null,
+          timer_remaining_seconds: 0,
+        }
+        break
+      }
+
       case 'finish': {
         updateData = {
           timer_status: 'finished',
