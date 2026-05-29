@@ -265,23 +265,8 @@ export function BoardColumn({
         </div>
       </div>
 
-      {/* Cards List */}
-      <div className="flex-1 p-2 space-y-2 overflow-y-auto max-h-[500px]">
-        {sortedCards.map((card) => (
-          <RetroCard
-            key={card.id}
-            card={card}
-            participantId={participantId}
-            currentColumn={type}
-            otherColumns={otherColumns}
-            onVote={() => handleVote(card)}
-            onDelete={() => handleDelete(card.id)}
-            onEdit={(newText) => handleEdit(card, newText)}
-            onMove={(target) => handleMove(card, target)}
-          />
-        ))}
-
-        {/* Add Card Form */}
+      {/* Add Card Form - fixed at top */}
+      <div className="px-2 pt-2">
         {isColumnFull ? (
           <p className="text-xs text-muted-foreground text-center py-2">
             Limite de 100 cards atingido
@@ -333,6 +318,23 @@ export function BoardColumn({
             Adicionar
           </Button>
         )}
+      </div>
+
+      {/* Cards List */}
+      <div className="flex-1 p-2 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+        {sortedCards.map((card) => (
+          <RetroCard
+            key={card.id}
+            card={card}
+            participantId={participantId}
+            currentColumn={type}
+            otherColumns={otherColumns}
+            onVote={() => handleVote(card)}
+            onDelete={() => handleDelete(card.id)}
+            onEdit={(newText) => handleEdit(card, newText)}
+            onMove={(target) => handleMove(card, target)}
+          />
+        ))}
       </div>
     </div>
   )

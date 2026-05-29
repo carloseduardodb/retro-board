@@ -107,18 +107,8 @@ export function ActionsColumn({
         </div>
       </div>
 
-      {/* Actions List */}
-      <div className="flex-1 p-2 space-y-2 overflow-y-auto max-h-[500px]">
-        {actionCards.map((action) => (
-          <ActionCardItem
-            key={action.id}
-            action={action}
-            participantId={participantId}
-            onDelete={() => handleDelete(action.id)}
-          />
-        ))}
-
-        {/* Add Action Form */}
+      {/* Add Action Form - fixed at top */}
+      <div className="px-2 pt-2">
         {isAdding ? (
           <Card className="border-dashed">
             <CardContent className="p-2 space-y-2">
@@ -173,6 +163,18 @@ export function ActionsColumn({
             Adicionar Ação
           </Button>
         )}
+      </div>
+
+      {/* Actions List */}
+      <div className="flex-1 p-2 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+        {actionCards.map((action) => (
+          <ActionCardItem
+            key={action.id}
+            action={action}
+            participantId={participantId}
+            onDelete={() => handleDelete(action.id)}
+          />
+        ))}
       </div>
     </div>
   )

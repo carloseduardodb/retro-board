@@ -174,11 +174,11 @@ export function BoardClient({
         onCloseRetro={handleCloseRetro}
       />
 
-      <div className="flex-1 flex flex-col lg:flex-row">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Main Board Area */}
-        <div className="flex-1 p-4 overflow-auto">
+        <div className="flex-1 p-4 overflow-hidden">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-full min-h-[600px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-full">
               <BoardColumn
                 type="good"
                 title="O que foi bom"
@@ -229,7 +229,7 @@ export function BoardClient({
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-full lg:w-72 border-t lg:border-t-0 lg:border-l border-border bg-card p-4 space-y-4">
+        <div className="w-full lg:w-72 border-t lg:border-t-0 lg:border-l border-border bg-card p-4 space-y-4 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
           <TimerPanel
             session={currentSession}
             sessionToken={session.token}
