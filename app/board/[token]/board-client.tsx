@@ -163,7 +163,7 @@ export function BoardClient({
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       <BoardHeader
         token={session.token}
         participantsCount={participants.length}
