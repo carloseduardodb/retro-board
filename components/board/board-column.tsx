@@ -252,7 +252,7 @@ export function BoardColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        'rounded-lg border flex flex-col transition-colors',
+        'rounded-lg border flex flex-col transition-colors min-h-0',
         styles.bg,
         styles.border,
         isOver && 'ring-2 ring-primary/50'

@@ -174,11 +174,11 @@ export function BoardClient({
         onCloseRetro={handleCloseRetro}
       />
 
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
         {/* Main Board Area */}
-        <div className="flex-1 p-4 overflow-hidden">
+        <div className="flex-1 p-4 min-h-0 flex flex-col overflow-hidden">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-0">
               <BoardColumn
                 type="good"
                 title="O que foi bom"

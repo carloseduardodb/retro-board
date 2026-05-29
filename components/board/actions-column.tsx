@@ -98,7 +98,7 @@ export function ActionsColumn({
   }
 
   return (
-    <div className={cn('rounded-lg border flex flex-col bg-column-actions/30 border-column-actions/50')}>
+    <div className={cn('rounded-lg border flex flex-col min-h-0 bg-column-actions/30 border-column-actions/50')}>
       {/* Header */}
       <div className="px-4 py-3 rounded-t-lg font-medium bg-column-actions text-column-actions-foreground">
         <div className="flex items-center justify-between">
