@@ -5,18 +5,7 @@ import type { SnapshotData, SnapshotCard, SnapshotActionCard } from '@/lib/types
 
 export const maxDuration = 120
 
-export async function POST(request: Request) {
-  // Validate authorization
-  const authHeader = request.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
-
+export async function POST() {
   // Setup 120s timeout via AbortController
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 120_000)
