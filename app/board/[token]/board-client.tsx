@@ -3,7 +3,8 @@
 import { useState, useCallback } from 'react'
 import { useParticipant } from '@/hooks/use-participant'
 import { useRealtime } from '@/hooks/use-realtime'
-import type { Session, Card, ActionCard, Suggestion, PrevAction } from '@/lib/types/database'
+import { useHistoryRealtime } from '@/hooks/use-history-realtime'
+import type { Session, Card, ActionCard, Suggestion, PrevAction, SnapshotData } from '@/lib/types/database'
 import { BoardHeader } from '@/components/board/board-header'
 import { BoardColumn } from '@/components/board/board-column'
 import { ActionsColumn } from '@/components/board/actions-column'
@@ -11,11 +12,15 @@ import { TimerPanel } from '@/components/board/timer-panel'
 import { ParticipantsPanel } from '@/components/board/participants-panel'
 import { PrevActionsPanel } from '@/components/board/prev-actions-panel'
 import { AIPanel } from '@/components/board/ai-panel'
+import { HistoryCalendar } from '@/components/board/history-calendar'
+import { HistoryBanner } from '@/components/board/history-banner'
 import { RefreshCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card as CardUI, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core'
+import { toast } from 'sonner'
+import { formatDateBrasilia } from '@/lib/snapshot-utils'
 
 type BoardClientProps = {
   session: Session
@@ -66,24 +71,97 @@ export function BoardClient({
 
   const currentSession = realtimeSession || session
 
-  // Filter cards by column
-  const goodCards = cards.filter(c => c.column_type === 'good')
-  const badCards = cards.filter(c => c.column_type === 'bad')
-  const ideasCards = cards.filter(c => c.column_type === 'ideas')
+  // History mode state
+  const [historyMode, setHistoryMode] = useState(false)
+  const [historyDate, setHistoryDate] = useState<Date | null>(null)
+  const [historyCards, setHistoryCards] = useState<Card[]>([])
+  const [historyActionCards, setHistoryActionCards] = useState<ActionCard[]>([])
 
-  // DnD setup
+  // Format historyDate as YYYY-MM-DD for the realtime channel
+  const historyDateStr = historyDate
+    ? `${historyDate.getFullYear()}-${String(historyDate.getMonth() + 1).padStart(2, '0')}-${String(historyDate.getDate()).padStart(2, '0')}`
+    : null
+
+  // Subscribe to the history broadcast channel for real-time updates from other participants
+  const handleHistoryRealtimeUpdate = useCallback((updatedCards: Card[], updatedActionCards: ActionCard[]) => {
+    setHistoryCards(updatedCards)
+    setHistoryActionCards(updatedActionCards)
+  }, [])
+
+  useHistoryRealtime({
+    sessionToken: session.token,
+    date: historyDateStr,
+    enabled: historyMode,
+    onUpdate: handleHistoryRealtimeUpdate,
+  })
+
+  const handleSelectHistoryDate = useCallback(async (date: Date) => {
+    setHistoryMode(true)
+    setHistoryDate(date)
+
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const isoDate = `${year}-${month}-${day}`
+
+    try {
+      const res = await fetch(
+        `/api/snapshots/${isoDate}?session_token=${encodeURIComponent(session.token)}`
+      )
+      if (res.ok) {
+        const data = await res.json()
+        const snapshotData: SnapshotData = data.snapshot.snapshot_data
+        // Map snapshot cards to Card type for column rendering
+        setHistoryCards(
+          snapshotData.cards.map((c) => ({
+            ...c,
+            session_token: session.token,
+          }))
+        )
+        setHistoryActionCards(
+          snapshotData.actionCards.map((a) => ({
+            ...a,
+            session_token: session.token,
+          }))
+        )
+      }
+    } catch (error) {
+      console.error('Error loading snapshot:', error)
+    }
+  }, [session.token])
+
+  const handleExitHistory = useCallback(() => {
+    setHistoryMode(false)
+    setHistoryDate(null)
+    setHistoryCards([])
+    setHistoryActionCards([])
+  }, [])
+
+  // Conditional card rendering based on history mode
+  const displayCards = historyMode ? historyCards : cards
+  const displayActionCards = historyMode ? historyActionCards : actionCards
+
+  // Filter cards by column
+  const goodCards = displayCards.filter(c => c.column_type === 'good')
+  const badCards = displayCards.filter(c => c.column_type === 'bad')
+  const ideasCards = displayCards.filter(c => c.column_type === 'ideas')
+
+  // DnD setup (disabled in history mode)
   const [activeCard, setActiveCard] = useState<Card | null>(null)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
+  const activeSensors = historyMode ? undefined : sensors
 
   const handleDragStart = (event: DragStartEvent) => {
+    if (historyMode) return
     const card = cards.find(c => c.id === event.active.id)
     if (card) setActiveCard(card)
   }
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     setActiveCard(null)
+    if (historyMode) return
     const { active, over } = event
     if (!over) return
 
@@ -122,7 +200,7 @@ export function BoardClient({
       broadcast({ type: 'card_deleted', payload: { id: movedCard.id } })
       broadcast({ type: 'card_added', payload: card })
     }
-  }, [cards, broadcast, trackOperation])
+  }, [cards, broadcast, trackOperation, historyMode])
 
   const handleCloseRetro = async () => {
     if (isClosing) return
@@ -177,7 +255,10 @@ export function BoardClient({
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
         {/* Main Board Area */}
         <div className="flex-1 p-4 min-h-0 flex flex-col overflow-hidden">
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          {historyMode && historyDate && (
+            <HistoryBanner date={historyDate} onExit={handleExitHistory} />
+          )}
+          <DndContext sensors={activeSensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-0">
               <BoardColumn
                 type="good"
@@ -210,7 +291,7 @@ export function BoardClient({
                 trackOperation={trackOperation}
               />
               <ActionsColumn
-                actionCards={actionCards}
+                actionCards={displayActionCards}
                 sessionToken={session.token}
                 participantId={participantId}
                 participantName={participantName}
@@ -239,6 +320,13 @@ export function BoardClient({
             participants={participants}
             currentParticipantId={participantId}
             onRename={updateName}
+          />
+          <HistoryCalendar
+            sessionToken={session.token}
+            onSelectDate={handleSelectHistoryDate}
+            onExitHistory={handleExitHistory}
+            isHistoryMode={historyMode}
+            selectedDate={historyDate}
           />
         </div>
       </div>

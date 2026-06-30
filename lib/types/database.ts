@@ -1,3 +1,29 @@
+// Snapshot data interfaces for board_snapshots JSONB
+export interface SnapshotCard {
+  id: string
+  column_type: "good" | "bad" | "ideas"
+  text: string
+  author: string
+  author_id: string
+  votes: number
+  voters: string[]
+  created_at: string
+}
+
+export interface SnapshotActionCard {
+  id: string
+  text: string
+  responsible: string | null
+  author: string
+  author_id: string
+  created_at: string
+}
+
+export interface SnapshotData {
+  cards: SnapshotCard[]
+  actionCards: SnapshotActionCard[]
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -146,6 +172,29 @@ export type Database = {
           created_at?: string
         }
       }
+      board_snapshots: {
+        Row: {
+          id: string
+          session_token: string
+          reference_date: string
+          snapshot_data: SnapshotData
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_token: string
+          reference_date: string
+          snapshot_data: SnapshotData
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_token?: string
+          reference_date?: string
+          snapshot_data?: SnapshotData
+          created_at?: string
+        }
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
@@ -159,6 +208,7 @@ export type Card = Database['public']['Tables']['cards']['Row']
 export type ActionCard = Database['public']['Tables']['action_cards']['Row']
 export type Suggestion = Database['public']['Tables']['suggestions']['Row']
 export type PrevAction = Database['public']['Tables']['prev_actions']['Row']
+export type BoardSnapshot = Database['public']['Tables']['board_snapshots']['Row']
 
 export type ColumnType = 'good' | 'bad' | 'ideas' | 'actions'
 export type TimerStatus = 'configuring' | 'running' | 'paused' | 'finished'
