@@ -120,6 +120,34 @@ export async function POST() {
           continue
         }
 
+        // Limpar o board após salvar o snapshot
+        const { error: deleteCardsError } = await supabase
+          .from('cards')
+          .delete()
+          .eq('session_token', session.token)
+
+        if (deleteCardsError) {
+          errors.push(`Erro ao limpar cards da sessão ${session.token}: ${deleteCardsError.message}`)
+        }
+
+        const { error: deleteActionsError } = await supabase
+          .from('action_cards')
+          .delete()
+          .eq('session_token', session.token)
+
+        if (deleteActionsError) {
+          errors.push(`Erro ao limpar action_cards da sessão ${session.token}: ${deleteActionsError.message}`)
+        }
+
+        const { error: deleteSuggestionsError } = await supabase
+          .from('suggestions')
+          .delete()
+          .eq('session_token', session.token)
+
+        if (deleteSuggestionsError) {
+          errors.push(`Erro ao limpar suggestions da sessão ${session.token}: ${deleteSuggestionsError.message}`)
+        }
+
         captured++
       } catch (sessionError) {
         const message = sessionError instanceof Error ? sessionError.message : 'Erro desconhecido'
