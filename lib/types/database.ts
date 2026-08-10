@@ -42,7 +42,6 @@ export type Database = {
           timer_minutes: number
           timer_ends_at: string | null
           timer_remaining_seconds: number | null
-          cards_revealed: boolean
         }
         Insert: {
           token: string
@@ -52,7 +51,6 @@ export type Database = {
           timer_minutes?: number
           timer_ends_at?: string | null
           timer_remaining_seconds?: number | null
-          cards_revealed?: boolean
         }
         Update: {
           token?: string
@@ -62,7 +60,6 @@ export type Database = {
           timer_minutes?: number
           timer_ends_at?: string | null
           timer_remaining_seconds?: number | null
-          cards_revealed?: boolean
         }
       }
       cards: {

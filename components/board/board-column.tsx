@@ -691,7 +691,7 @@ function RetroCard({
       <Card className="border-dashed">
         <CardContent className="flex items-center gap-2 p-3 text-muted-foreground">
           <EyeOff className="w-3.5 h-3.5 shrink-0" />
-          <span className="text-xs">Oculto até a revelação</span>
+          <span className="text-xs">Oculto enquanto o timer roda</span>
         </CardContent>
       </Card>
     )
@@ -752,17 +752,18 @@ function RetroCard({
             </div>
           </div>
 
-          <div className="mt-2">
-            <CardReactions
-              reactions={card.reactions ?? {}}
-              participantId={participantId}
-              disabled={!interactive}
-              onToggle={onReact}
-            />
-          </div>
+          <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-border/50">
+            {/* Reações à esquerda, ações e voto à direita */}
+            <div className="min-w-0 flex-1">
+              <CardReactions
+                reactions={card.reactions ?? {}}
+                participantId={participantId}
+                disabled={!interactive}
+                onToggle={onReact}
+              />
+            </div>
 
-          <div className="flex items-center justify-end mt-2 pt-2 border-t border-border/50">
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               {/* Desagrupar (apenas dentro de um grupo) */}
               {inGroup && !readOnly && (
                 <Button

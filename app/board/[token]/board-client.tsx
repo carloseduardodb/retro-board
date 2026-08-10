@@ -248,35 +248,10 @@ export function BoardClient({
     }
   }, [cards, broadcast, trackOperation, historyMode, handleGroupCards])
 
-  // Anti-viés: enquanto o timer roda, os cards dos outros ficam ocultos até
-  // alguém revelar. Fora do estado "rodando" os cards são sempre visíveis.
-  const cardsHidden =
-    !historyMode &&
-    currentSession.timer_status === 'running' &&
-    !currentSession.cards_revealed
+  // Anti-viés: enquanto o timer roda, os cards dos outros participantes ficam
+  // ocultos. Ao pausar, encerrar ou expirar o timer, todos ficam visíveis.
+  const cardsHidden = !historyMode && currentSession.timer_status === 'running'
 
-  const handleToggleReveal = useCallback(async () => {
-    const revealed = !currentSession.cards_revealed
-    broadcast({ type: 'timer_update', payload: { cards_revealed: revealed } })
-
-    try {
-      await trackOperation(async () => {
-        const res = await fetch('/api/sessions/reveal', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_token: session.token, revealed }),
-        })
-
-        if (!res.ok) {
-          broadcast({ type: 'timer_update', payload: { cards_revealed: !revealed } })
-          toast.error('Não foi possível atualizar a visibilidade dos cards')
-        }
-      })
-    } catch (error) {
-      console.error('Error toggling reveal:', error)
-      broadcast({ type: 'timer_update', payload: { cards_revealed: !revealed } })
-    }
-  }, [currentSession.cards_revealed, session.token, broadcast, trackOperation])
 
   const handleCloseRetro = async () => {
     if (isClosing) return
@@ -323,9 +298,6 @@ export function BoardClient({
         participantsCount={participants.length}
         isConnected={isConnected}
         isSyncing={pendingOps > 0}
-        canToggleReveal={!historyMode && currentSession.timer_status === 'running'}
-        cardsHidden={cardsHidden}
-        onToggleReveal={handleToggleReveal}
         onShowPrevActions={() => setShowPrevActions(true)}
         onShowAI={() => setShowAIPanel(true)}
         onCloseRetro={handleCloseRetro}

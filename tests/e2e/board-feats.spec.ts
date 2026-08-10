@@ -73,28 +73,22 @@ test.describe('Board - Reações com emoji', () => {
   })
 })
 
-test.describe('Board - Revelação anti-viés', () => {
+test.describe('Board - Ocultação anti-viés', () => {
   test.beforeEach(async ({ page }) => {
     await createSessionAndEnter(page)
-  })
-
-  test('botão de revelar só aparece com o timer rodando', async ({ page }) => {
-    await expect(page.getByRole('button', { name: 'Revelar cards' })).toHaveCount(0)
-
-    await page.getByRole('button', { name: 'Iniciar' }).click()
-    await expect(page.getByRole('button', { name: 'Revelar cards' })).toBeVisible({ timeout: 10000 })
-
-    await page.getByRole('button', { name: 'Revelar cards' }).click()
-    await expect(page.getByRole('button', { name: 'Ocultar cards' })).toBeVisible({ timeout: 10000 })
   })
 
   test('cards próprios continuam visíveis com o timer rodando', async ({ page }) => {
     await addCard(page, 'Card do próprio autor')
     await page.getByRole('button', { name: 'Iniciar' }).click()
 
-    await expect(page.getByRole('button', { name: 'Revelar cards' })).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('Card do próprio autor')).toBeVisible()
-    await expect(page.getByText('Oculto até a revelação')).toHaveCount(0)
+    await expect(page.getByText('Card do próprio autor')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('Oculto enquanto o timer roda')).toHaveCount(0)
+  })
+
+  test('não existe botão de revelar cards', async ({ page }) => {
+    await page.getByRole('button', { name: 'Iniciar' }).click()
+    await expect(page.getByRole('button', { name: 'Revelar cards' })).toHaveCount(0)
   })
 })
 

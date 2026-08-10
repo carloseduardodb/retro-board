@@ -71,19 +71,11 @@ A ordenação da coluna considera o grupo como um item único, usando a soma dos
 
 Internamente, `group_id` e `group_label` são gravados em cada card do grupo (denormalizados), de modo que o realtime já existente propaga as mudanças.
 
-### 5.2 Revelação anti-viés
+### 5.2 Ocultação anti-viés
 
-Enquanto o timer está **rodando**, os cards dos outros participantes ficam ocultos (exibem "Oculto até a revelação", sem texto, votos ou reações). Os cards do próprio participante permanecem visíveis.
+Enquanto o timer está **rodando**, os cards dos outros participantes ficam ocultos (exibem "Oculto enquanto o timer roda", sem texto, votos ou reações). Os cards do próprio participante permanecem visíveis, para que cada um acompanhe o que escreveu.
 
-Em qualquer outro estado do timer (configurando, pausado, expirado) os cards são visíveis para todos.
-
-Enquanto o timer roda, o header exibe um botão "Revelar cards" que libera a visualização para todos ao mesmo tempo (e "Ocultar cards" para voltar atrás). O estado é persistido em `sessions.cards_revealed` e é resetado para oculto sempre que o timer passa a rodar.
-
-Limites e validações:
-
-- Máximo de 100 cards por coluna — campo de adição é desabilitado ao atingir o limite, servidor rejeita com `column_full`
-- Máximo de 500 caracteres por card — contador visual no cliente, rejeitado no servidor com `invalid_payload`
-- Texto vazio — bloqueado no cliente, rejeitado no servidor com `invalid_payload`
+Em qualquer outro estado do timer (configurando, pausado, expirado) os cards são visíveis para todos. A revelação é automática: basta pausar ou encerrar o timer — **não existe botão de revelar**, para que ninguém libere o conteúdo antes da hora.
 
 ## 6. Cards — coluna Ações
 
@@ -164,7 +156,6 @@ Colunas específicas das features do board:
 | ---------- | ----------------------------- | ---------------------------------------------- |
 | `cards`    | `group_id` / `group_label`    | Agrupamento de cards relacionados (seção 5.1)  |
 | `cards`    | `reactions` (jsonb)           | `{ "🔥": ["participantId", ...] }`             |
-| `sessions` | `cards_revealed` (boolean)    | Revelação anti-viés (seção 5.2)                |
 
 As migrações ficam em `supabase/migrations/`.
 
