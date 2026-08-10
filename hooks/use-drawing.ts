@@ -16,9 +16,15 @@ export type Stroke = {
   finishedAt: number | null
 }
 
-/** Tempo que o traço fica cheio antes de começar a sumir, e duração do fade. */
-export const STROKE_HOLD_MS = 4000
-export const STROKE_FADE_MS = 1500
+/**
+ * O fade não conta por traço, e sim por autor: enquanto a pessoa continua
+ * desenhando, nada do que ela fez começa a sumir. Só depois de STROKE_HOLD_MS
+ * parada é que o desenho inteiro dela some junto, em STROKE_FADE_MS.
+ * Sem isso, quem escreve uma palavra vê a primeira letra sumir antes de
+ * terminar a última.
+ */
+export const STROKE_HOLD_MS = 6000
+export const STROKE_FADE_MS = 2000
 
 export const DRAW_COLORS = [
   '#ef4444',
@@ -52,6 +58,8 @@ export function useDrawing(sessionToken: string, participantId: string) {
   // Os traços vivem em ref: são de alta frequência e o canvas os lê no rAF,
   // então não faz sentido passar por estado do React.
   const strokesRef = useRef<Map<string, Stroke>>(new Map())
+  /** Última vez que cada autor mexeu no lápis — base do fade de todo o desenho dele. */
+  const activityRef = useRef<Map<string, number>>(new Map())
   const channelRef = useRef<RealtimeChannel | null>(null)
   const supabaseRef = useRef(createClient())
 
@@ -64,6 +72,8 @@ export function useDrawing(sessionToken: string, participantId: string) {
   }, [])
 
   const applyRemote = useCallback((msg: StrokeMessage) => {
+    activityRef.current.set(msg.authorId, Date.now())
+
     const existing = strokesRef.current.get(msg.id)
     if (existing) {
       existing.points.push(...msg.points)
@@ -89,6 +99,7 @@ export function useDrawing(sessionToken: string, participantId: string) {
     channel.on('broadcast', { event: 'draw' }, ({ payload }) => {
       if (payload && 'clear' in payload) {
         strokesRef.current.clear()
+        activityRef.current.clear()
         return
       }
       applyRemote(payload as StrokeMessage)
@@ -124,6 +135,7 @@ export function useDrawing(sessionToken: string, participantId: string) {
   const getColor = useCallback(() => colorRef.current, [])
 
   const startStroke = useCallback((point: DrawPoint) => {
+    activityRef.current.set(participantId, Date.now())
     const id = `${participantId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
     activeIdRef.current = id
     pendingRef.current = []
@@ -140,13 +152,16 @@ export function useDrawing(sessionToken: string, participantId: string) {
   const addPoint = useCallback((point: DrawPoint) => {
     const id = activeIdRef.current
     if (!id) return
+    activityRef.current.set(participantId, Date.now())
     strokesRef.current.get(id)?.points.push(point)
     pendingRef.current.push(point)
-  }, [])
+  }, [participantId])
 
   const endStroke = useCallback(() => {
     const id = activeIdRef.current
     if (!id) return
+
+    activityRef.current.set(participantId, Date.now())
 
     const points = pendingRef.current
     pendingRef.current = []
@@ -160,10 +175,11 @@ export function useDrawing(sessionToken: string, participantId: string) {
 
   const clear = useCallback(() => {
     strokesRef.current.clear()
+    activityRef.current.clear()
     activeIdRef.current = null
     pendingRef.current = []
     send({ clear: true })
   }, [send])
 
-  return { strokesRef, startStroke, addPoint, endStroke, clear, setColor, getColor }
+  return { strokesRef, activityRef, startStroke, addPoint, endStroke, clear, setColor, getColor }
 }

@@ -66,12 +66,51 @@ test.describe('Board - Modo desenho', () => {
     await page.waitForTimeout(300)
     expect(await pixelsDesenhados(page)).toBe(0)
 
-    // Sem limpar, o traço desaparece sozinho após hold + fade
+    // Sem limpar, o traço desaparece sozinho após o autor ficar parado (hold + fade)
     await rabiscar(page)
     await page.waitForTimeout(300)
     expect(await pixelsDesenhados(page)).toBeGreaterThan(0)
 
-    await page.waitForTimeout(6500)
+    await page.waitForTimeout(9000)
+    expect(await pixelsDesenhados(page)).toBe(0)
+  })
+
+  test('desenho de vários traços não some pela metade', async ({ page }) => {
+    await createSessionAndEnter(page, 'Testador')
+    await page.getByRole('button', { name: 'Modo desenho' }).click()
+
+    const box = (await page.locator('canvas').boundingBox())!
+    const y = box.y + box.height / 2
+
+    // Três traços separados com pausas longas entre eles, como quem escreve
+    // uma palavra soltando o mouse entre as letras.
+    for (let t = 0; t < 3; t++) {
+      const x = box.x + 120 + t * 90
+      await page.mouse.move(x, y - 30)
+      await page.mouse.down()
+      await page.mouse.move(x + 40, y + 30, { steps: 8 })
+      await page.mouse.up()
+      await page.waitForTimeout(2500)
+    }
+
+    // O primeiro traço ficou mais de 5s na tela e ainda tem que estar inteiro:
+    // o fade só começa depois que o autor para de desenhar.
+    const desenhados = await pixelsDesenhados(page)
+    expect(desenhados).toBeGreaterThan(0)
+
+    const opacidadeMinima = await page.locator('canvas').evaluate((el) => {
+      const canvas = el as HTMLCanvasElement
+      const ctx = canvas.getContext('2d')!
+      // olha só a faixa do primeiro traço, à esquerda
+      const { data } = ctx.getImageData(0, 0, Math.floor(canvas.width / 3), canvas.height)
+      let max = 0
+      for (let i = 3; i < data.length; i += 4) max = Math.max(max, data[i])
+      return max
+    })
+    expect(opacidadeMinima).toBe(255)
+
+    // Parando de desenhar, o desenho inteiro some junto
+    await page.waitForTimeout(9000)
     expect(await pixelsDesenhados(page)).toBe(0)
   })
 

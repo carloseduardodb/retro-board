@@ -27,7 +27,7 @@ export function DrawingLayer({ sessionToken, participantId, isDrawing, onExit }:
   const containerRef = useRef<HTMLDivElement>(null)
   const drawingPointerRef = useRef<number | null>(null)
 
-  const { strokesRef, startStroke, addPoint, endStroke, clear, setColor, getColor } = useDrawing(
+  const { strokesRef, activityRef, startStroke, addPoint, endStroke, clear, setColor, getColor } = useDrawing(
     sessionToken,
     participantId
   )
@@ -68,7 +68,10 @@ export function DrawingLayer({ sessionToken, participantId, isDrawing, onExit }:
 
         for (const stroke of strokesRef.current.values()) {
           if (stroke.finishedAt !== null) {
-            const age = now - stroke.finishedAt
+            // O relógio do fade é o da última atividade do autor, não o do traço:
+            // desenhos de vários traços somem inteiros, não em pedaços.
+            const base = Math.max(stroke.finishedAt, activityRef.current.get(stroke.authorId) ?? 0)
+            const age = now - base
             if (age > STROKE_HOLD_MS + STROKE_FADE_MS) {
               strokesRef.current.delete(stroke.id)
               continue
@@ -111,7 +114,7 @@ export function DrawingLayer({ sessionToken, participantId, isDrawing, onExit }:
 
     frame = requestAnimationFrame(render)
     return () => cancelAnimationFrame(frame)
-  }, [strokesRef])
+  }, [strokesRef, activityRef])
 
   const toPoint = useCallback((e: React.PointerEvent): DrawPoint | null => {
     const container = containerRef.current
