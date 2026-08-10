@@ -14,6 +14,7 @@ import { PrevActionsPanel } from '@/components/board/prev-actions-panel'
 import { AIPanel } from '@/components/board/ai-panel'
 import { HistoryCalendar } from '@/components/board/history-calendar'
 import { HistoryBanner } from '@/components/board/history-banner'
+import { DrawingLayer } from '@/components/board/drawing-layer'
 import { RefreshCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -52,6 +53,7 @@ export function BoardClient({
   const [showAIPanel, setShowAIPanel] = useState(false)
   const [showPrevActions, setShowPrevActions] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
+  const [isDrawing, setIsDrawing] = useState(false)
   const [pendingOps, setPendingOps] = useState(0)
 
   const trackOperation = async <T,>(operation: () => Promise<T>): Promise<T> => {
@@ -303,6 +305,8 @@ export function BoardClient({
         participantsCount={participants.length}
         isConnected={isConnected}
         isSyncing={pendingOps > 0}
+        isDrawing={isDrawing}
+        onToggleDrawing={() => setIsDrawing(v => !v)}
         onShowPrevActions={() => setShowPrevActions(true)}
         onShowAI={() => setShowAIPanel(true)}
         onCloseRetro={handleCloseRetro}
@@ -310,7 +314,7 @@ export function BoardClient({
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
         {/* Main Board Area */}
-        <div className="flex-1 p-4 min-h-0 flex flex-col overflow-hidden">
+        <div className="relative flex-1 p-4 min-h-0 flex flex-col overflow-hidden">
           {historyMode && historyDate && (
             <HistoryBanner date={historyDate} onExit={handleExitHistory} />
           )}
@@ -370,6 +374,14 @@ export function BoardClient({
               )}
             </DragOverlay>
           </DndContext>
+
+          {/* Camada de rabiscos: sempre visível, mas só captura o mouse em modo desenho */}
+          <DrawingLayer
+            sessionToken={session.token}
+            participantId={participantId}
+            isDrawing={isDrawing}
+            onExit={() => setIsDrawing(false)}
+          />
         </div>
 
         {/* Right Sidebar */}
