@@ -14,6 +14,7 @@ O nome do participante é salvo em localStorage sob a chave `retro_participant_n
 | ------------------------ | -------------------------------- | --------------------------------------- |
 | `retro_participant_id`   | string único gerado uma vez      | Primeiro acesso ao app                  |
 | `retro_participant_name` | string com o nome (max 20 chars) | Ao confirmar entrada em qualquer sessão |
+| `retro_recent_emojis`    | até 16 emojis usados recentemente | Ao reagir a um card                    |
 
 ## 2. Sessão e URL
 
@@ -36,7 +37,7 @@ O board tem quatro colunas fixas:
 | Ideias | Azul    | Ideias              |
 | Ações  | Amarelo | Ações               |
 
-A coluna Ações tem comportamento distinto — não tem votação e aceita um campo opcional de responsável.
+A coluna Ações tem comportamento distinto — não tem votação, agrupamento nem reações.
 
 ## 5. Cards — colunas Bom, Ruim e Ideias
 
@@ -48,6 +49,36 @@ O botão alterna entre votar e remover voto. Cada participante vota uma única v
 
 A ordenação dentro de cada coluna é por votos decrescente. Cards com mesmo número de votos são ordenados por `createdAt` decrescente.
 
+**Edição:** Qualquer participante pode editar o texto de um card (máximo 500 caracteres).
+
+**Reações:** Cada card aceita reações com emoji, escolhidos em um seletor completo (estilo Slack) com busca por palavra-chave em português, navegação por categorias e lista de "usados recentemente" — persistida por navegador em `localStorage` sob a chave `retro_recent_emojis`.
+
+Cada participante reage uma vez por emoji e clicar no chip de novo remove a reação. Os chips são ordenados por quantidade de reações decrescente. As reações são independentes da votação e não influenciam a ordenação dos cards.
+
+O servidor aceita qualquer emoji (valida que o valor começa com um pictograma, não contém letras/números/espaços e tem no máximo 16 code units), limitado a 30 emojis distintos por card.
+
+### 5.1 Agrupamento de cards relacionados
+
+Arrastar um card e soltá-lo sobre outro card agrupa os dois. Se o card alvo já pertence a um grupo, o card arrastado entra nesse grupo; se ambos já tinham grupos, os grupos são fundidos. Cards agrupados assumem a coluna do card alvo.
+
+O grupo é renderizado como um bloco com:
+
+- Título opcional editável (máximo 60 caracteres), exibido como "Grupo sem nome" quando vazio
+- Contagem de cards e soma dos votos de todos os cards do grupo
+- Botão de desagrupar todos; cada card do grupo também pode sair individualmente
+
+A ordenação da coluna considera o grupo como um item único, usando a soma dos votos e o `createdAt` mais recente entre seus cards. Um grupo que fica com apenas um card é desfeito automaticamente.
+
+Internamente, `group_id` e `group_label` são gravados em cada card do grupo (denormalizados), de modo que o realtime já existente propaga as mudanças.
+
+### 5.2 Revelação anti-viés
+
+Enquanto o timer está **rodando**, os cards dos outros participantes ficam ocultos (exibem "Oculto até a revelação", sem texto, votos ou reações). Os cards do próprio participante permanecem visíveis.
+
+Em qualquer outro estado do timer (configurando, pausado, expirado) os cards são visíveis para todos.
+
+Enquanto o timer roda, o header exibe um botão "Revelar cards" que libera a visualização para todos ao mesmo tempo (e "Ocultar cards" para voltar atrás). O estado é persistido em `sessions.cards_revealed` e é resetado para oculto sempre que o timer passa a rodar.
+
 Limites e validações:
 
 - Máximo de 100 cards por coluna — campo de adição é desabilitado ao atingir o limite, servidor rejeita com `column_full`
@@ -56,7 +87,9 @@ Limites e validações:
 
 ## 6. Cards — coluna Ações
 
-Cards de Ação têm dois campos: texto (obrigatório, máximo 500 caracteres) e responsável (opcional). Não têm votação. A ordenação é por `createdAt` decrescente.
+Cards de Ação têm um único campo: texto (obrigatório, máximo 500 caracteres). Não têm votação nem responsável — **ações são do time**, não de uma pessoa. A ordenação é por `createdAt` decrescente.
+
+Qualquer participante pode editar ou excluir uma ação, já que a ação pertence ao time. O nome do autor não é exibido.
 
 Cards de Ação podem ser criados manualmente ou via fluxo de sugestão da IA (seção 9).
 
@@ -96,8 +129,7 @@ Formato JSON esperado:
 [
   {
     "id": "1",
-    "text": "descrição da ação",
-    "responsible": "responsável ou null"
+    "text": "descrição da ação"
   }
 ]
 ```
@@ -122,9 +154,19 @@ O produto mantém apenas a sprint imediatamente anterior. Ao encerrar uma nova r
 ## 12. Persistência
 
 - Banco: Supabase PostgreSQL
-- Tabelas: `sessions`, `cards`, `action_cards`, `suggestions`, `prev_actions`
+- Tabelas: `sessions`, `cards`, `action_cards`, `suggestions`, `prev_actions`, `board_snapshots`
 - Realtime: Supabase Realtime (broadcast + presence)
 - RLS: Acesso público (sem autenticação)
+
+Colunas específicas das features do board:
+
+| Tabela     | Coluna                        | Uso                                            |
+| ---------- | ----------------------------- | ---------------------------------------------- |
+| `cards`    | `group_id` / `group_label`    | Agrupamento de cards relacionados (seção 5.1)  |
+| `cards`    | `reactions` (jsonb)           | `{ "🔥": ["participantId", ...] }`             |
+| `sessions` | `cards_revealed` (boolean)    | Revelação anti-viés (seção 5.2)                |
+
+As migrações ficam em `supabase/migrations/`.
 
 ## 13. Códigos de erro
 
@@ -142,9 +184,8 @@ O produto mantém apenas a sprint imediatamente anterior. Ao encerrar uma nova r
 
 - Autenticação e controle de acesso
 - Distinção de papéis entre participantes
-- Edição de cards após criação
-- Edição de sugestões da IA antes da aprovação
-- Histórico de múltiplas sprints
+- Responsável nominal em ações
+- Emojis customizados (upload de imagem, como no Slack)
 - Export de dados
 - Notificações
 - Moderação de conteúdo

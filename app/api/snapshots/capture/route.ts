@@ -83,6 +83,9 @@ export async function POST() {
           author_id: card.author_id,
           votes: card.votes,
           voters: card.voters,
+          group_id: card.group_id ?? null,
+          group_label: card.group_label ?? null,
+          reactions: card.reactions ?? {},
           created_at: card.created_at,
         }))
 

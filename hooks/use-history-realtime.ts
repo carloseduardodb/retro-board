@@ -58,6 +58,9 @@ export function useHistoryRealtime({
           snapshotData.cards.map((c) => ({
             ...c,
             session_token: sessionToken,
+            group_id: c.group_id ?? null,
+            group_label: c.group_label ?? null,
+            reactions: c.reactions ?? {},
           })),
           snapshotData.actionCards.map((a) => ({
             ...a,

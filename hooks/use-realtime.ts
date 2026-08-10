@@ -88,6 +88,14 @@ export function useRealtime(
             ),
           };
 
+        case "cards_updated": {
+          const updates = new Map(event.payload.map((c) => [c.id, c]));
+          return {
+            ...prev,
+            cards: prev.cards.map((c) => updates.get(c.id) ?? c),
+          };
+        }
+
         case "card_deleted":
           return {
             ...prev,

@@ -105,20 +105,7 @@ test.describe('Board - Coluna Ações', () => {
     await createSessionAndEnter(page)
   })
 
-  test('adiciona ação com responsável', async ({ page }) => {
-    await page.getByRole('button', { name: 'Adicionar Ação' }).click()
-    await page.getByPlaceholder('Descreva a ação...').fill('Melhorar testes')
-    await page.getByPlaceholder('Responsável (opcional)').fill('Tech Lead')
-
-    // Submit
-    const sendBtn = page.locator('[class*="column-actions"]').locator('button:has(svg)').last()
-    await sendBtn.click()
-
-    await expect(page.getByText('Melhorar testes')).toBeVisible()
-    await expect(page.getByText('Tech Lead')).toBeVisible()
-  })
-
-  test('adiciona ação sem responsável', async ({ page }) => {
+  test('adiciona ação', async ({ page }) => {
     await page.getByRole('button', { name: 'Adicionar Ação' }).click()
     await page.getByPlaceholder('Descreva a ação...').fill('Ação do time')
 
@@ -126,5 +113,29 @@ test.describe('Board - Coluna Ações', () => {
     await sendBtn.click()
 
     await expect(page.getByText('Ação do time')).toBeVisible()
+  })
+
+  test('não oferece campo de responsável', async ({ page }) => {
+    await page.getByRole('button', { name: 'Adicionar Ação' }).click()
+    await expect(page.getByPlaceholder('Responsável (opcional)')).toHaveCount(0)
+  })
+
+  test('edita uma ação existente', async ({ page }) => {
+    await page.getByRole('button', { name: 'Adicionar Ação' }).click()
+    await page.getByPlaceholder('Descreva a ação...').fill('Melhorar testes')
+
+    const actionsColumn = page.locator('[class*="column-actions"]')
+    await actionsColumn.locator('button:has(svg)').last().click()
+
+    const actionCard = actionsColumn.locator('.group', { hasText: 'Melhorar testes' }).first()
+    await expect(actionCard).toBeVisible()
+
+    await actionCard.hover()
+    await actionCard.getByTitle('Editar ação').click()
+
+    await actionsColumn.locator('textarea').fill('Melhorar testes de integração')
+    await actionsColumn.locator('button:has(svg)').last().click()
+
+    await expect(actionsColumn.getByText('Melhorar testes de integração')).toBeVisible()
   })
 })

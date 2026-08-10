@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent } from '@/components/ui/card'
-import { X, Plus, Clock, User, Trash2 } from 'lucide-react'
+import { X, Plus, Clock, Trash2 } from 'lucide-react'
 import type { PrevAction, RealtimeEvent } from '@/lib/types/database'
 
 type PrevActionsPanelProps = {
@@ -25,7 +25,6 @@ export function PrevActionsPanel({
 }: PrevActionsPanelProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [newText, setNewText] = useState('')
-  const [newResponsible, setNewResponsible] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleAddPrevAction = async () => {
@@ -39,7 +38,6 @@ export function PrevActionsPanel({
         body: JSON.stringify({
           session_token: sessionToken,
           text: newText.trim(),
-          responsible: newResponsible.trim() || null,
         }),
       })
 
@@ -47,7 +45,6 @@ export function PrevActionsPanel({
         const { prevAction } = await res.json()
         broadcast({ type: 'prev_action_updated', payload: prevAction })
         setNewText('')
-        setNewResponsible('')
         setIsAdding(false)
       }
     } catch (error) {
@@ -124,12 +121,6 @@ export function PrevActionsPanel({
                       <p className={`text-sm ${action.done ? 'line-through' : ''}`}>
                         {action.text}
                       </p>
-                      {action.responsible && (
-                        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                          <User className="w-3 h-3" />
-                          <span>{action.responsible}</span>
-                        </div>
-                      )}
                     </div>
                     <Button
                       variant="ghost"
@@ -155,11 +146,6 @@ export function PrevActionsPanel({
                   onChange={(e) => setNewText(e.target.value)}
                   autoFocus
                 />
-                <Input
-                  placeholder="Responsável (opcional)"
-                  value={newResponsible}
-                  onChange={(e) => setNewResponsible(e.target.value)}
-                />
                 <div className="flex justify-end gap-2">
                   <Button
                     variant="ghost"
@@ -167,7 +153,6 @@ export function PrevActionsPanel({
                     onClick={() => {
                       setIsAdding(false)
                       setNewText('')
-                      setNewResponsible('')
                     }}
                   >
                     Cancelar

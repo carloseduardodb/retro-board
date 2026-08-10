@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { X, Sparkles, Check, X as XIcon, Copy, ClipboardPaste, AlertCircle, Pencil } from 'lucide-react'
 import type { Card as CardType, ActionCard, Suggestion, RealtimeEvent } from '@/lib/types/database'
@@ -52,7 +51,7 @@ export function AIPanel({
 
     const actions = actionCards
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .map(c => `- ${c.text}${c.responsible ? ` (Responsável: ${c.responsible})` : ''}`)
+      .map(c => `- ${c.text}`)
 
     return `Você é um facilitador de retrospectivas ágeis. Analise o feedback da equipe abaixo e sugira ações concretas e práticas para a próxima sprint.
 
@@ -71,13 +70,13 @@ ${actions.length > 0 ? actions.join('\n') : 'Nenhuma'}
 INSTRUÇÕES:
 - Foque principalmente nos itens com mais votos
 - Cada ação deve ser específica, mensurável e alcançável em uma sprint
-- Se possível, sugira um responsável (ex: "Tech Lead", "Time", "PO")
+- Não atribua responsáveis — as ações são do time
 - Responda EXCLUSIVAMENTE com um JSON válido no formato abaixo, sem texto adicional, sem markdown, sem explicações
 
 FORMATO DE RESPOSTA (JSON array):
 [
-  {"id": "1", "text": "Descrição da ação", "responsible": "Responsável ou null"},
-  {"id": "2", "text": "Descrição da ação", "responsible": null}
+  {"id": "1", "text": "Descrição da ação"},
+  {"id": "2", "text": "Descrição da ação"}
 ]`
   }
 
@@ -113,7 +112,7 @@ FORMATO DE RESPOSTA (JSON array):
         return
       }
 
-      const suggestions = parsed as { id?: string; text?: string; responsible?: string | null }[]
+      const suggestions = parsed as { id?: string; text?: string }[]
       
       for (const item of suggestions) {
         if (!item.text || typeof item.text !== 'string') {
@@ -129,10 +128,7 @@ FORMATO DE RESPOSTA (JSON array):
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           session_token: sessionToken,
-          suggestions: suggestions.map(s => ({
-            text: s.text,
-            responsible: s.responsible || null,
-          })),
+          suggestions: suggestions.map(s => ({ text: s.text })),
         }),
       })
 
@@ -159,7 +155,7 @@ FORMATO DE RESPOSTA (JSON array):
     }
   }
 
-  const handleApproveSuggestion = async (suggestion: Suggestion, editedText?: string, editedResponsible?: string | null) => {
+  const handleApproveSuggestion = async (suggestion: Suggestion, editedText?: string) => {
     try {
       const res = await fetch('/api/suggestions/approve', {
         method: 'POST',
@@ -168,7 +164,6 @@ FORMATO DE RESPOSTA (JSON array):
           suggestion_id: suggestion.id,
           session_token: sessionToken,
           text: editedText ?? suggestion.text,
-          responsible: editedResponsible !== undefined ? editedResponsible : suggestion.responsible,
         }),
       })
 
@@ -257,12 +252,12 @@ FORMATO DE RESPOSTA (JSON array):
               <div className="space-y-2">
                 <h3 className="font-medium text-sm">Passo 2 — Colar retorno da IA</h3>
                 <p className="text-sm text-muted-foreground">
-                  Cole aqui o JSON retornado pela IA externa. O formato esperado é um array de objetos com &quot;id&quot;, &quot;text&quot; e &quot;responsible&quot;.
+                  Cole aqui o JSON retornado pela IA externa. O formato esperado é um array de objetos com &quot;id&quot; e &quot;text&quot;.
                 </p>
               </div>
 
               <Textarea
-                placeholder={'[\n  {"id": "1", "text": "Ação sugerida", "responsible": "Time"},\n  {"id": "2", "text": "Outra ação", "responsible": null}\n]'}
+                placeholder={'[\n  {"id": "1", "text": "Ação sugerida"},\n  {"id": "2", "text": "Outra ação"}\n]'}
                 value={pastedJson}
                 onChange={(e) => {
                   setPastedJson(e.target.value)
@@ -302,7 +297,7 @@ FORMATO DE RESPOSTA (JSON array):
                 <SuggestionCard
                   key={suggestion.id}
                   suggestion={suggestion}
-                  onApprove={(text, responsible) => handleApproveSuggestion(suggestion, text, responsible)}
+                  onApprove={(text) => handleApproveSuggestion(suggestion, text)}
                   onReject={() => handleRejectSuggestion(suggestion.id)}
                 />
               ))}
@@ -316,17 +311,16 @@ FORMATO DE RESPOSTA (JSON array):
 
 type SuggestionCardProps = {
   suggestion: Suggestion
-  onApprove: (text: string, responsible: string | null) => void
+  onApprove: (text: string) => void
   onReject: () => void
 }
 
 function SuggestionCard({ suggestion, onApprove, onReject }: SuggestionCardProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editText, setEditText] = useState(suggestion.text)
-  const [editResponsible, setEditResponsible] = useState(suggestion.responsible || '')
 
   const handleApprove = () => {
-    onApprove(editText.trim() || suggestion.text, editResponsible.trim() || null)
+    onApprove(editText.trim() || suggestion.text)
   }
 
   if (isEditing) {
@@ -338,12 +332,6 @@ function SuggestionCard({ suggestion, onApprove, onReject }: SuggestionCardProps
             onChange={(e) => setEditText(e.target.value)}
             className="min-h-[60px] resize-none text-sm"
             maxLength={500}
-          />
-          <Input
-            placeholder="Responsável (opcional)"
-            value={editResponsible}
-            onChange={(e) => setEditResponsible(e.target.value)}
-            className="text-sm"
           />
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
@@ -363,11 +351,6 @@ function SuggestionCard({ suggestion, onApprove, onReject }: SuggestionCardProps
     <Card>
       <CardContent className="p-3">
         <p className="text-sm">{suggestion.text}</p>
-        {suggestion.responsible && (
-          <p className="text-xs text-muted-foreground mt-1">
-            Responsável: {suggestion.responsible}
-          </p>
-        )}
         <div className="flex justify-end gap-2 mt-3">
           <Button variant="outline" size="sm" onClick={onReject}>
             <XIcon className="w-4 h-4 mr-1" />
