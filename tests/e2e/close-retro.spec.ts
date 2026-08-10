@@ -15,18 +15,20 @@ async function createSessionAndEnter(page: Page) {
 }
 
 async function addAction(page: Page, text: string) {
-  await page.getByRole('button', { name: 'Adicionar Ação' }).click()
-  await page.getByPlaceholder('Descreva a ação...').fill(text)
+  const column = page.getByTestId('column-actions')
+  await column.getByRole('button', { name: 'Adicionar Ação' }).click()
+  await column.getByPlaceholder('Descreva a ação...').fill(text)
   // Click the send button inside the actions column form
-  const actionsForm = page.locator('[class*="column-actions"] [class*="border-dashed"]')
-  await actionsForm.locator('button').last().click()
-  await expect(page.getByText(text)).toBeVisible({ timeout: 5000 })
+  await column.locator('[class*="border-dashed"]').locator('button').last().click()
+  await expect(
+    column.locator('[data-action-id]:not([data-action-id^="temp-"])').filter({ hasText: text })
+  ).toHaveCount(1, { timeout: 10000 })
 }
 
 async function closeRetro(page: Page) {
   // Register dialog handler BEFORE triggering
   page.once('dialog', dialog => dialog.accept())
-  await page.locator('header button').nth(1).click()
+  await page.getByRole('button', { name: 'Mais ações' }).click()
   await page.getByRole('menuitem', { name: 'Encerrar Retro' }).click()
 }
 
@@ -36,7 +38,7 @@ test.describe('Encerramento da Retro', () => {
   })
 
   test('botão Encerrar Retro está no menu', async ({ page }) => {
-    await page.locator('header button').nth(1).click()
+    await page.getByRole('button', { name: 'Mais ações' }).click()
     await expect(page.getByRole('menuitem', { name: 'Encerrar Retro' })).toBeVisible()
   })
 
@@ -60,7 +62,7 @@ test.describe('Encerramento da Retro', () => {
     await expect(page.getByText('Ação persistente')).not.toBeVisible({ timeout: 10000 })
 
     // Verificar ações anteriores
-    await page.locator('header button').nth(1).click()
+    await page.getByRole('button', { name: 'Mais ações' }).click()
     await page.getByRole('menuitem', { name: 'Ações Anteriores' }).click()
 
     await expect(page.getByText('Ações da Sprint Anterior')).toBeVisible()
@@ -74,7 +76,7 @@ test.describe('Encerramento da Retro', () => {
     await expect(page.getByText('Ação para marcar')).not.toBeVisible({ timeout: 10000 })
 
     // Abrir ações anteriores
-    await page.locator('header button').nth(1).click()
+    await page.getByRole('button', { name: 'Mais ações' }).click()
     await page.getByRole('menuitem', { name: 'Ações Anteriores' }).click()
     await expect(page.getByText('0 de 1 concluídas')).toBeVisible()
 

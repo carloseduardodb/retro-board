@@ -125,7 +125,10 @@ export function ActionsColumn({
   )
 
   return (
-    <div className={cn('rounded-lg border flex flex-col min-h-0 bg-column-actions/30 border-column-actions/50')}>
+    <div
+      data-testid="column-actions"
+      className={cn('rounded-lg border flex flex-col min-h-0 bg-column-actions/30 border-column-actions/50')}
+    >
       {/* Header */}
       <div className="px-4 py-3 rounded-t-lg font-medium bg-column-actions text-column-actions-foreground">
         <div className="flex items-center justify-between">
@@ -257,7 +260,7 @@ function ActionCardItem({ action, readOnly, onEdit, onDelete }: ActionCardItemPr
   }
 
   return (
-    <Card className="group">
+    <Card className="group" data-action-id={action.id}>
       <CardContent className="p-3">
         <p className="text-sm whitespace-pre-wrap break-words">{action.text}</p>
         {!readOnly && (

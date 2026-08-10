@@ -16,11 +16,17 @@ async function createSessionAndEnter(page: Page): Promise<string> {
 }
 
 async function addCard(page: Page, text: string) {
-  const column = page.locator('[class*="column-good"]').first()
-  await page.getByRole('button', { name: 'Adicionar' }).first().click()
-  await page.getByPlaceholder('Digite seu feedback...').fill(text)
-  await column.locator('button:has(svg)').last().click()
+  const column = page.getByTestId('column-good')
+  await column.getByRole('button', { name: 'Adicionar' }).click()
+  await column.getByPlaceholder('Digite seu feedback...').fill(text)
+  await column.locator('[class*="border-dashed"]').locator('button').last().click()
   await expect(page.getByText(text)).toBeVisible({ timeout: 10000 })
+  // O card entra otimista com id temporário e é trocado pelo card do servidor
+  // quando o POST responde — a troca remonta o card e derruba qualquer popover
+  // aberto. Esperar o id definitivo evita corrida.
+  await expect(
+    column.locator('[data-card-id]:not([data-card-id^="temp-"])').filter({ hasText: text })
+  ).toHaveCount(1, { timeout: 10000 })
 }
 
 test.describe('Board - Reações com emoji', () => {

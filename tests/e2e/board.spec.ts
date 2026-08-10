@@ -16,6 +16,21 @@ async function createSessionAndEnter(page: Page): Promise<string> {
   return page.url().split('/board/')[1]
 }
 
+/**
+ * Cria uma ação e espera o id definitivo do servidor. O card entra otimista com
+ * um id temporário e é trocado quando o POST responde — a troca remonta o card
+ * e cancelaria um editor aberto logo em seguida.
+ */
+async function addAction(page: Page, text: string) {
+  const column = page.getByTestId('column-actions')
+  await column.getByRole('button', { name: 'Adicionar Ação' }).click()
+  await column.getByPlaceholder('Descreva a ação...').fill(text)
+  await column.locator('[class*="border-dashed"]').locator('button').last().click()
+  await expect(
+    column.locator('[data-action-id]:not([data-action-id^="temp-"])').filter({ hasText: text })
+  ).toHaveCount(1, { timeout: 10000 })
+}
+
 test.describe('Board - Colunas e Layout', () => {
   test.beforeEach(async ({ page }) => {
     await createSessionAndEnter(page)
@@ -53,9 +68,10 @@ test.describe('Board - Cards Anônimos', () => {
   })
 
   test('adiciona card na coluna Bom (aparece imediatamente)', async ({ page }) => {
-    await page.getByRole('button', { name: 'Adicionar' }).first().click()
-    await page.getByPlaceholder('Digite seu feedback...').fill('Boa comunicação')
-    await page.locator('button:has(svg)').filter({ hasText: '' }).nth(3).click()
+    const column = page.getByTestId('column-good')
+    await column.getByRole('button', { name: 'Adicionar' }).click()
+    await column.getByPlaceholder('Digite seu feedback...').fill('Boa comunicação')
+    await column.locator('[class*="border-dashed"]').locator('button').last().click()
 
     // Card deve aparecer sem nome do autor (anônimo)
     await expect(page.getByText('Boa comunicação')).toBeVisible()
@@ -71,7 +87,7 @@ test.describe('Board - Cards Anônimos', () => {
     await expect(page.getByText('Card anônimo')).toBeVisible({ timeout: 5000 })
 
     // Não deve ter "Testador" visível no card
-    const column = page.locator('[class*="column-good"]').first()
+    const column = page.getByTestId('column-good')
     await expect(column.getByText('Testador')).not.toBeVisible()
   })
 
@@ -106,12 +122,7 @@ test.describe('Board - Coluna Ações', () => {
   })
 
   test('adiciona ação', async ({ page }) => {
-    await page.getByRole('button', { name: 'Adicionar Ação' }).click()
-    await page.getByPlaceholder('Descreva a ação...').fill('Ação do time')
-
-    const sendBtn = page.locator('[class*="column-actions"]').locator('button:has(svg)').last()
-    await sendBtn.click()
-
+    await addAction(page, 'Ação do time')
     await expect(page.getByText('Ação do time')).toBeVisible()
   })
 
@@ -121,11 +132,8 @@ test.describe('Board - Coluna Ações', () => {
   })
 
   test('edita uma ação existente', async ({ page }) => {
-    await page.getByRole('button', { name: 'Adicionar Ação' }).click()
-    await page.getByPlaceholder('Descreva a ação...').fill('Melhorar testes')
-
-    const actionsColumn = page.locator('[class*="column-actions"]')
-    await actionsColumn.locator('button:has(svg)').last().click()
+    const actionsColumn = page.getByTestId('column-actions')
+    await addAction(page, 'Melhorar testes')
 
     const actionCard = actionsColumn.locator('.group', { hasText: 'Melhorar testes' }).first()
     await expect(actionCard).toBeVisible()
