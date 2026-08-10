@@ -51,6 +51,8 @@ A ordenação dentro de cada coluna é por votos decrescente. Cards com mesmo n�
 
 **Edição:** Qualquer participante pode editar o texto de um card (máximo 500 caracteres).
 
+**Ações do card:** editar, mover de coluna, remover do grupo e excluir ficam em um menu único (⋯) no rodapé do card, ao lado do botão de voto. As colunas são estreitas — botões soltos espremiam as reações.
+
 **Reações:** Cada card aceita reações com emoji, escolhidos em um seletor completo (estilo Slack) com busca por palavra-chave em português, navegação por categorias e lista de "usados recentemente" — persistida por navegador em `localStorage` sob a chave `retro_recent_emojis`.
 
 Cada participante reage uma vez por emoji e clicar no chip de novo remove a reação. Os chips são ordenados por quantidade de reações decrescente. As reações são independentes da votação e não influenciam a ordenação dos cards.
@@ -61,11 +63,14 @@ O servidor aceita qualquer emoji (valida que o valor começa com um pictograma, 
 
 Arrastar um card e soltá-lo sobre outro card agrupa os dois. Se o card alvo já pertence a um grupo, o card arrastado entra nesse grupo; se ambos já tinham grupos, os grupos são fundidos. Cards agrupados assumem a coluna do card alvo.
 
-O grupo é renderizado como um bloco com:
+Soltar um card sobre o bloco de um grupo (não só sobre um card específico) também agrupa.
 
-- Título opcional editável (máximo 60 caracteres), exibido como "Grupo sem nome" quando vazio
+O grupo é renderizado como **um bloco único**, e não como cards soltos dentro de uma moldura: os itens perdem a moldura própria e ficam separados apenas por divisórias internas, com uma faixa colorida à esquerda e camadas deslocadas atrás sugerindo uma pilha de cards. O bloco tem:
+
+- Cabeçalho com título opcional editável (máximo 60 caracteres), exibido como "Sem nome" quando vazio
 - Contagem de cards e soma dos votos de todos os cards do grupo
-- Botão de desagrupar todos; cada card do grupo também pode sair individualmente
+- Botão de recolher/expandir — recolhido, mostra apenas "Mostrar N cards agrupados"
+- Botão de desagrupar todos; cada card do grupo também pode sair individualmente, pelo menu de ações
 
 A ordenação da coluna considera o grupo como um item único, usando a soma dos votos e o `createdAt` mais recente entre seus cards. Um grupo que fica com apenas um card é desfeito automaticamente.
 

@@ -14,7 +14,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import {
   DropdownMenu,
@@ -32,8 +31,11 @@ import {
   ArrowRight,
   Check,
   GripVertical,
+  MoreHorizontal,
   Layers,
   Ungroup,
+  ChevronDown,
+  ChevronRight,
   EyeOff,
 } from 'lucide-react'
 import type { Card as CardType, RealtimeEvent } from '@/lib/types/database'
@@ -534,6 +536,8 @@ export function BoardColumn({
           ) : (
             <CardGroup
               key={entry.key}
+              groupId={entry.groupId}
+              anchorCardId={entry.cards[0].id}
               label={entry.label}
               count={entry.cards.length}
               votes={entry.votes}
@@ -551,6 +555,9 @@ export function BoardColumn({
 }
 
 type CardGroupProps = {
+  groupId: string
+  /** Card usado como alvo quando alguém solta um card na área do grupo. */
+  anchorCardId: string
   label: string | null
   count: number
   votes: number
@@ -560,9 +567,32 @@ type CardGroupProps = {
   children: React.ReactNode
 }
 
-function CardGroup({ label, count, votes, readOnly, onRename, onUngroupAll, children }: CardGroupProps) {
+/**
+ * Renderiza o grupo como um bloco único (uma "pilha" de cards), e não como
+ * cards soltos dentro de uma caixa: os itens perdem a moldura própria e ficam
+ * separados apenas por divisórias internas.
+ */
+function CardGroup({
+  groupId,
+  anchorCardId,
+  label,
+  count,
+  votes,
+  readOnly,
+  onRename,
+  onUngroupAll,
+  children,
+}: CardGroupProps) {
   const [isEditingLabel, setIsEditingLabel] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const [draftLabel, setDraftLabel] = useState(label ?? '')
+
+  // Soltar um card em qualquer ponto do bloco também agrupa.
+  const { setNodeRef, isOver } = useDroppable({
+    id: `group:${groupId}`,
+    data: { targetCardId: anchorCardId },
+    disabled: readOnly,
+  })
 
   const saveLabel = () => {
     if (draftLabel.trim() !== (label ?? '')) {
@@ -572,57 +602,110 @@ function CardGroup({ label, count, votes, readOnly, onRename, onUngroupAll, chil
   }
 
   return (
-    <div className="group/group rounded-lg border-2 border-dashed border-primary/40 bg-background/40 p-2">
-      <div className="flex items-center gap-1 px-1 pb-2">
-        <Layers className="w-3.5 h-3.5 shrink-0 text-primary" />
-        {isEditingLabel ? (
-          <Input
-            value={draftLabel}
-            onChange={(e) => setDraftLabel(e.target.value)}
-            onBlur={saveLabel}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') saveLabel()
-              if (e.key === 'Escape') {
-                setDraftLabel(label ?? '')
-                setIsEditingLabel(false)
-              }
-            }}
-            placeholder="Nome do grupo"
-            maxLength={60}
-            autoFocus
-            className="h-6 text-xs"
-          />
-        ) : (
+    <div className="relative pb-3">
+      {/* Camadas deslocadas atrás do bloco sugerem uma pilha de cards */}
+      <div
+        aria-hidden
+        className="absolute inset-x-3 bottom-0 h-3 rounded-b-lg border border-t-0 border-border bg-muted"
+      />
+      <div
+        aria-hidden
+        className="absolute inset-x-1.5 bottom-1.5 h-3 rounded-b-lg border border-t-0 border-border bg-card"
+      />
+
+      <div
+        ref={setNodeRef}
+        className={cn(
+          'group/group relative overflow-hidden rounded-lg border bg-card shadow-sm transition-colors',
+          isOver && 'ring-2 ring-primary'
+        )}
+      >
+        {/* Faixa lateral colorida amarra os itens como um bloco só */}
+        <div aria-hidden className="absolute inset-y-0 left-0 w-1.5 bg-primary" />
+
+        {/* Cabeçalho */}
+        <div className="flex items-center gap-1 border-b border-border bg-muted/60 py-1.5 pl-3 pr-1.5">
           <button
             type="button"
-            disabled={readOnly}
-            onClick={() => {
-              setDraftLabel(label ?? '')
-              setIsEditingLabel(true)
-            }}
-            className="flex-1 min-w-0 truncate text-left text-xs font-medium text-foreground disabled:cursor-default"
+            onClick={() => setIsCollapsed((v) => !v)}
+            title={isCollapsed ? 'Expandir grupo' : 'Recolher grupo'}
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background/60 hover:text-foreground"
           >
-            {label || <span className="text-muted-foreground">Grupo sem nome</span>}
+            {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
-        )}
-        <span className="shrink-0 text-[11px] text-muted-foreground">{count} cards</span>
-        <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
-          <ThumbsUp className="w-3 h-3" />
-          {votes}
-        </span>
-        {!readOnly && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 shrink-0 p-0 opacity-0 transition-opacity group-hover/group:opacity-100"
-            title="Desagrupar todos"
-            onClick={onUngroupAll}
+
+          {isEditingLabel ? (
+            <Input
+              value={draftLabel}
+              onChange={(e) => setDraftLabel(e.target.value)}
+              onBlur={saveLabel}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveLabel()
+                if (e.key === 'Escape') {
+                  setDraftLabel(label ?? '')
+                  setIsEditingLabel(false)
+                }
+              }}
+              placeholder="Nome do grupo"
+              maxLength={60}
+              autoFocus
+              className="h-6 text-xs"
+            />
+          ) : (
+            <button
+              type="button"
+              disabled={readOnly}
+              title={readOnly ? undefined : 'Renomear grupo'}
+              onClick={() => {
+                setDraftLabel(label ?? '')
+                setIsEditingLabel(true)
+              }}
+              className="min-w-0 flex-1 truncate text-left text-xs font-semibold text-foreground disabled:cursor-default"
+            >
+              {label || <span className="font-medium text-muted-foreground">Sem nome</span>}
+            </button>
+          )}
+
+          <span
+            title={`${count} cards agrupados`}
+            className="flex shrink-0 items-center gap-1 rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
           >
-            <Ungroup className="w-3 h-3" />
-          </Button>
+            <Layers className="h-2.5 w-2.5" />
+            {count}
+          </span>
+          <span
+            title={`${votes} votos no grupo`}
+            className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-muted-foreground"
+          >
+            <ThumbsUp className="h-3 w-3" />
+            {votes}
+          </span>
+
+          {!readOnly && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 shrink-0 p-0 opacity-0 transition-opacity group-hover/group:opacity-100"
+              title="Desagrupar todos"
+              onClick={onUngroupAll}
+            >
+              <Ungroup className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+
+        {isCollapsed ? (
+          <button
+            type="button"
+            onClick={() => setIsCollapsed(false)}
+            className="w-full py-2 pl-3 text-left text-xs text-muted-foreground hover:text-foreground"
+          >
+            Mostrar {count} cards agrupados
+          </button>
+        ) : (
+          <div className="divide-y divide-border/70 pl-1">{children}</div>
         )}
       </div>
-      <div className="space-y-2">{children}</div>
     </div>
   )
 }
@@ -659,6 +742,7 @@ function RetroCard({
   onUngroup,
 }: RetroCardProps) {
   const [isEditing, setIsEditing] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [editText, setEditText] = useState(card.text)
   const isOwner = card.author_id === participantId
   const hasVoted = card.voters.includes(participantId)
@@ -687,20 +771,19 @@ function RetroCard({
   }
 
   if (isHidden) {
-    return (
-      <Card className="border-dashed">
-        <CardContent className="flex items-center gap-2 p-3 text-muted-foreground">
-          <EyeOff className="w-3.5 h-3.5 shrink-0" />
-          <span className="text-xs">Oculto enquanto o timer roda</span>
-        </CardContent>
-      </Card>
+    const placeholder = (
+      <div className="flex items-center gap-2 p-3 text-muted-foreground">
+        <EyeOff className="w-3.5 h-3.5 shrink-0" />
+        <span className="text-xs">Oculto enquanto o timer roda</span>
+      </div>
     )
+
+    return inGroup ? placeholder : <Card className="border-dashed">{placeholder}</Card>
   }
 
   if (isEditing) {
-    return (
-      <Card>
-        <CardContent className="p-2">
+    const editor = (
+      <div className="p-2">
           <Textarea
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
@@ -719,23 +802,14 @@ function RetroCard({
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+      </div>
     )
+
+    return inGroup ? editor : <Card>{editor}</Card>
   }
 
-  return (
-    <div ref={setDropRef}>
-      <Card
-        ref={setNodeRef}
-        style={style}
-        className={cn(
-          'group',
-          isDragging && 'opacity-50',
-          isOver && !isDragging && 'ring-2 ring-primary'
-        )}
-      >
-        <CardContent className="p-3">
+  const body = (
+    <div className="p-3">
           <div className="flex gap-1">
             {interactive && (
               <div
@@ -752,7 +826,12 @@ function RetroCard({
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-border/50">
+          <div
+            className={cn(
+              'flex items-center justify-between gap-2 mt-2 pt-2',
+              !inGroup && 'border-t border-border/50'
+            )}
+          >
             {/* Reações à esquerda, ações e voto à direita */}
             <div className="min-w-0 flex-1">
               <CardReactions
@@ -764,81 +843,69 @@ function RetroCard({
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
-              {/* Desagrupar (apenas dentro de um grupo) */}
-              {inGroup && !readOnly && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Remover do grupo"
-                  onClick={onUngroup}
-                >
-                  <Ungroup className="w-3 h-3" />
-                </Button>
-              )}
-
-              {/* Move dropdown */}
+              {/* Ações do card em um menu só — em coluna estreita, os botões
+                  soltos comiam o espaço das reações */}
               {!readOnly && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Ações do card"
+                      className="h-7 w-7 p-0 opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:opacity-100"
                     >
-                      <ArrowRight className="w-3 h-3" />
+                      <MoreHorizontal className="w-3.5 h-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                      <Pencil className="w-3.5 h-3.5 mr-2" />
+                      Editar
+                    </DropdownMenuItem>
+
                     {otherColumns.map(col => (
                       <DropdownMenuItem key={col} onClick={() => onMove(col)}>
+                        <ArrowRight className="w-3.5 h-3.5 mr-2" />
                         Mover para {columnLabels[col]}
                       </DropdownMenuItem>
                     ))}
+
+                    {inGroup && (
+                      <DropdownMenuItem onClick={onUngroup}>
+                        <Ungroup className="w-3.5 h-3.5 mr-2" />
+                        Remover do grupo
+                      </DropdownMenuItem>
+                    )}
+
+                    {isOwner && (
+                      <DropdownMenuItem
+                        onClick={() => setConfirmingDelete(true)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-2" />
+                        Excluir
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
 
-              {/* Edit button */}
-              {!readOnly && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => setIsEditing(true)}
-                >
-                  <Pencil className="w-3 h-3" />
-                </Button>
-              )}
-
-              {/* Delete (owner only) */}
-              {isOwner && !readOnly && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Excluir card?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Essa ação não pode ser desfeita. O card será removido permanentemente.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        Excluir
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
+              <AlertDialog open={confirmingDelete} onOpenChange={setConfirmingDelete}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir card?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Essa ação não pode ser desfeita. O card será removido permanentemente.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Excluir
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
 
               {/* Vote */}
               <Button
@@ -853,7 +920,41 @@ function RetroCard({
               </Button>
             </div>
           </div>
-        </CardContent>
+    </div>
+  )
+
+  // Dentro de um grupo o item é plano: sem moldura, sombra ou espaçamento
+  // próprio — quem dá a moldura é o bloco do grupo.
+  if (inGroup) {
+    return (
+      <div ref={setDropRef}>
+        <div
+          ref={setNodeRef}
+          style={style}
+          className={cn(
+            'group relative transition-colors',
+            isDragging && 'opacity-50',
+            isOver && !isDragging && 'bg-primary/5 ring-1 ring-inset ring-primary'
+          )}
+        >
+          {body}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div ref={setDropRef}>
+      <Card
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          'group',
+          isDragging && 'opacity-50',
+          isOver && !isDragging && 'ring-2 ring-primary'
+        )}
+      >
+        {body}
       </Card>
     </div>
   )

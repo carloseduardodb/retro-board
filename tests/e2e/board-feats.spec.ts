@@ -114,17 +114,23 @@ test.describe('Board - Agrupamento de cards', () => {
     await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 12 })
     await page.mouse.up()
 
-    await expect(page.getByText('Grupo sem nome')).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('2 cards')).toBeVisible()
+    await expect(page.getByText('Sem nome')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByTitle('2 cards agrupados')).toBeVisible()
 
     // Nomear o grupo
-    await page.getByText('Grupo sem nome').click()
+    await page.getByText('Sem nome').click()
     await page.getByPlaceholder('Nome do grupo').fill('Deploy lento')
     await page.getByPlaceholder('Nome do grupo').press('Enter')
     await expect(page.getByText('Deploy lento')).toBeVisible({ timeout: 10000 })
 
+    // Recolher e expandir
+    await page.getByTitle('Recolher grupo').click()
+    await expect(page.getByText('Mostrar 2 cards agrupados')).toBeVisible()
+    await page.getByTitle('Expandir grupo').click()
+    await expect(page.getByText('Deploy demora demais')).toBeVisible()
+
     // Desagrupar
     await page.getByTitle('Desagrupar todos').click()
-    await expect(page.getByText('2 cards')).toHaveCount(0, { timeout: 10000 })
+    await expect(page.getByTitle('2 cards agrupados')).toHaveCount(0, { timeout: 10000 })
   })
 })

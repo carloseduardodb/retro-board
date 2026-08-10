@@ -25,10 +25,12 @@ import { formatDateBrasilia } from '@/lib/snapshot-utils'
 // Agrupar exige soltar o card exatamente em cima de outro card; em qualquer
 // outra posição vale a coluna mais próxima (mover entre colunas).
 const boardCollisionDetection: CollisionDetection = (args) => {
-  const cardHit = pointerWithin(args).find((collision) =>
-    String(collision.id).startsWith('card:')
-  )
-  return cardHit ? [cardHit] : closestCenter(args)
+  const hits = pointerWithin(args)
+  // Card tem prioridade sobre o bloco do grupo, que tem prioridade sobre a coluna.
+  const hit =
+    hits.find((c) => String(c.id).startsWith('card:')) ??
+    hits.find((c) => String(c.id).startsWith('group:'))
+  return hit ? [hit] : closestCenter(args)
 }
 
 type BoardClientProps = {
@@ -203,10 +205,13 @@ export function BoardClient({
     const cardId = active.id as string
     const overId = String(over.id)
 
-    // Soltou sobre outro card → agrupar
-    if (overId.startsWith('card:')) {
-      const targetCardId = overId.slice('card:'.length)
-      if (targetCardId !== cardId) {
+    // Soltou sobre outro card (ou sobre o bloco de um grupo) → agrupar
+    if (overId.startsWith('card:') || overId.startsWith('group:')) {
+      const targetCardId = overId.startsWith('card:')
+        ? overId.slice('card:'.length)
+        : (over.data.current?.targetCardId as string | undefined)
+
+      if (targetCardId && targetCardId !== cardId) {
         await handleGroupCards(cardId, targetCardId)
       }
       return
