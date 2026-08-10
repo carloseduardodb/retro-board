@@ -73,28 +73,22 @@ test.describe('Board - Reações com emoji', () => {
   })
 })
 
-test.describe('Board - Revelação anti-viés', () => {
+test.describe('Board - Ocultação anti-viés', () => {
   test.beforeEach(async ({ page }) => {
     await createSessionAndEnter(page)
-  })
-
-  test('botão de revelar só aparece com o timer rodando', async ({ page }) => {
-    await expect(page.getByRole('button', { name: 'Revelar cards' })).toHaveCount(0)
-
-    await page.getByRole('button', { name: 'Iniciar' }).click()
-    await expect(page.getByRole('button', { name: 'Revelar cards' })).toBeVisible({ timeout: 10000 })
-
-    await page.getByRole('button', { name: 'Revelar cards' }).click()
-    await expect(page.getByRole('button', { name: 'Ocultar cards' })).toBeVisible({ timeout: 10000 })
   })
 
   test('cards próprios continuam visíveis com o timer rodando', async ({ page }) => {
     await addCard(page, 'Card do próprio autor')
     await page.getByRole('button', { name: 'Iniciar' }).click()
 
-    await expect(page.getByRole('button', { name: 'Revelar cards' })).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('Card do próprio autor')).toBeVisible()
-    await expect(page.getByText('Oculto até a revelação')).toHaveCount(0)
+    await expect(page.getByText('Card do próprio autor')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('Oculto enquanto o timer roda')).toHaveCount(0)
+  })
+
+  test('não existe botão de revelar cards', async ({ page }) => {
+    await page.getByRole('button', { name: 'Iniciar' }).click()
+    await expect(page.getByRole('button', { name: 'Revelar cards' })).toHaveCount(0)
   })
 })
 
@@ -120,17 +114,23 @@ test.describe('Board - Agrupamento de cards', () => {
     await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 12 })
     await page.mouse.up()
 
-    await expect(page.getByText('Grupo sem nome')).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('2 cards')).toBeVisible()
+    await expect(page.getByText('Sem nome')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByTitle('2 cards agrupados')).toBeVisible()
 
     // Nomear o grupo
-    await page.getByText('Grupo sem nome').click()
+    await page.getByText('Sem nome').click()
     await page.getByPlaceholder('Nome do grupo').fill('Deploy lento')
     await page.getByPlaceholder('Nome do grupo').press('Enter')
     await expect(page.getByText('Deploy lento')).toBeVisible({ timeout: 10000 })
 
+    // Recolher e expandir
+    await page.getByTitle('Recolher grupo').click()
+    await expect(page.getByText('Mostrar 2 cards agrupados')).toBeVisible()
+    await page.getByTitle('Expandir grupo').click()
+    await expect(page.getByText('Deploy demora demais')).toBeVisible()
+
     // Desagrupar
     await page.getByTitle('Desagrupar todos').click()
-    await expect(page.getByText('2 cards')).toHaveCount(0, { timeout: 10000 })
+    await expect(page.getByTitle('2 cards agrupados')).toHaveCount(0, { timeout: 10000 })
   })
 })

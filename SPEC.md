@@ -51,6 +51,8 @@ A ordenação dentro de cada coluna é por votos decrescente. Cards com mesmo n�
 
 **Edição:** Qualquer participante pode editar o texto de um card (máximo 500 caracteres).
 
+**Ações do card:** editar, mover de coluna, remover do grupo e excluir ficam em um menu único (⋯) no rodapé do card, ao lado do botão de voto. As colunas são estreitas — botões soltos espremiam as reações.
+
 **Reações:** Cada card aceita reações com emoji, escolhidos em um seletor completo (estilo Slack) com busca por palavra-chave em português, navegação por categorias e lista de "usados recentemente" — persistida por navegador em `localStorage` sob a chave `retro_recent_emojis`.
 
 Cada participante reage uma vez por emoji e clicar no chip de novo remove a reação. Os chips são ordenados por quantidade de reações decrescente. As reações são independentes da votação e não influenciam a ordenação dos cards.
@@ -61,29 +63,24 @@ O servidor aceita qualquer emoji (valida que o valor começa com um pictograma, 
 
 Arrastar um card e soltá-lo sobre outro card agrupa os dois. Se o card alvo já pertence a um grupo, o card arrastado entra nesse grupo; se ambos já tinham grupos, os grupos são fundidos. Cards agrupados assumem a coluna do card alvo.
 
-O grupo é renderizado como um bloco com:
+Soltar um card sobre o bloco de um grupo (não só sobre um card específico) também agrupa.
 
-- Título opcional editável (máximo 60 caracteres), exibido como "Grupo sem nome" quando vazio
+O grupo é renderizado como **um bloco único**, e não como cards soltos dentro de uma moldura: os itens perdem a moldura própria e ficam separados apenas por divisórias internas, com uma faixa colorida à esquerda e camadas deslocadas atrás sugerindo uma pilha de cards. O bloco tem:
+
+- Cabeçalho com título opcional editável (máximo 60 caracteres), exibido como "Sem nome" quando vazio
 - Contagem de cards e soma dos votos de todos os cards do grupo
-- Botão de desagrupar todos; cada card do grupo também pode sair individualmente
+- Botão de recolher/expandir — recolhido, mostra apenas "Mostrar N cards agrupados"
+- Botão de desagrupar todos; cada card do grupo também pode sair individualmente, pelo menu de ações
 
 A ordenação da coluna considera o grupo como um item único, usando a soma dos votos e o `createdAt` mais recente entre seus cards. Um grupo que fica com apenas um card é desfeito automaticamente.
 
 Internamente, `group_id` e `group_label` são gravados em cada card do grupo (denormalizados), de modo que o realtime já existente propaga as mudanças.
 
-### 5.2 Revelação anti-viés
+### 5.2 Ocultação anti-viés
 
-Enquanto o timer está **rodando**, os cards dos outros participantes ficam ocultos (exibem "Oculto até a revelação", sem texto, votos ou reações). Os cards do próprio participante permanecem visíveis.
+Enquanto o timer está **rodando**, os cards dos outros participantes ficam ocultos (exibem "Oculto enquanto o timer roda", sem texto, votos ou reações). Os cards do próprio participante permanecem visíveis, para que cada um acompanhe o que escreveu.
 
-Em qualquer outro estado do timer (configurando, pausado, expirado) os cards são visíveis para todos.
-
-Enquanto o timer roda, o header exibe um botão "Revelar cards" que libera a visualização para todos ao mesmo tempo (e "Ocultar cards" para voltar atrás). O estado é persistido em `sessions.cards_revealed` e é resetado para oculto sempre que o timer passa a rodar.
-
-Limites e validações:
-
-- Máximo de 100 cards por coluna — campo de adição é desabilitado ao atingir o limite, servidor rejeita com `column_full`
-- Máximo de 500 caracteres por card — contador visual no cliente, rejeitado no servidor com `invalid_payload`
-- Texto vazio — bloqueado no cliente, rejeitado no servidor com `invalid_payload`
+Em qualquer outro estado do timer (configurando, pausado, expirado) os cards são visíveis para todos. A revelação é automática: basta pausar ou encerrar o timer — **não existe botão de revelar**, para que ninguém libere o conteúdo antes da hora.
 
 ## 6. Cards — coluna Ações
 
@@ -164,7 +161,6 @@ Colunas específicas das features do board:
 | ---------- | ----------------------------- | ---------------------------------------------- |
 | `cards`    | `group_id` / `group_label`    | Agrupamento de cards relacionados (seção 5.1)  |
 | `cards`    | `reactions` (jsonb)           | `{ "🔥": ["participantId", ...] }`             |
-| `sessions` | `cards_revealed` (boolean)    | Revelação anti-viés (seção 5.2)                |
 
 As migrações ficam em `supabase/migrations/`.
 

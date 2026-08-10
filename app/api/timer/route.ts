@@ -168,11 +168,6 @@ export async function POST(request: Request) {
         )
     }
 
-    // Ao (re)iniciar o timer os cards voltam a ficar ocultos para evitar viés.
-    if (updateData.timer_status === 'running' && session.timer_status !== 'running') {
-      updateData.cards_revealed = false
-    }
-
     const { data: updatedSession, error: updateError } = await supabase
       .from('sessions')
       .update({ ...updateData, updated_at: new Date().toISOString() })

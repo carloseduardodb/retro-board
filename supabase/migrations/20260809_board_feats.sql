@@ -14,7 +14,3 @@ create index if not exists cards_group_id_idx on public.cards (group_id);
 alter table public.cards
   add column if not exists reactions jsonb not null default '{}'::jsonb;
 
--- 3. Revelação anti-viés: enquanto o timer está rodando os cards dos outros
---    participantes ficam ocultos, a menos que alguém revele manualmente.
-alter table public.sessions
-  add column if not exists cards_revealed boolean not null default false;
