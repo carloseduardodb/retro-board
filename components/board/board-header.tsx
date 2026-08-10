@@ -19,7 +19,8 @@ import {
   Home,
   StopCircle,
   Moon,
-  Sun
+  Sun,
+  Pencil
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -28,6 +29,8 @@ type BoardHeaderProps = {
   participantsCount: number
   isConnected: boolean
   isSyncing: boolean
+  isDrawing: boolean
+  onToggleDrawing: () => void
   onShowPrevActions: () => void
   onShowAI: () => void
   onCloseRetro: () => void
@@ -38,6 +41,8 @@ export function BoardHeader({
   participantsCount,
   isConnected,
   isSyncing,
+  isDrawing,
+  onToggleDrawing,
   onShowPrevActions,
   onShowAI,
   onCloseRetro,
@@ -107,6 +112,19 @@ export function BoardHeader({
             <Users className="w-4 h-4" />
             <span>{participantsCount}</span>
           </div>
+
+          {/* Modo desenho */}
+          <Button
+            variant={isDrawing ? 'default' : 'ghost'}
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={onToggleDrawing}
+            title={isDrawing ? 'Sair do modo desenho (Esc)' : 'Rabiscar o board'}
+            aria-pressed={isDrawing}
+          >
+            <Pencil className="w-4 h-4" />
+            <span className="sr-only">Modo desenho</span>
+          </Button>
 
           {/* Theme toggle */}
           <Button
