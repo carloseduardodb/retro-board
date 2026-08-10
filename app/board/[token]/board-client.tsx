@@ -18,9 +18,18 @@ import { RefreshCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card as CardUI, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core'
+import { DndContext, DragOverlay, closestCenter, pointerWithin, PointerSensor, useSensor, useSensors, type CollisionDetection, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core'
 import { toast } from 'sonner'
 import { formatDateBrasilia } from '@/lib/snapshot-utils'
+
+// Agrupar exige soltar o card exatamente em cima de outro card; em qualquer
+// outra posição vale a coluna mais próxima (mover entre colunas).
+const boardCollisionDetection: CollisionDetection = (args) => {
+  const cardHit = pointerWithin(args).find((collision) =>
+    String(collision.id).startsWith('card:')
+  )
+  return cardHit ? [cardHit] : closestCenter(args)
+}
 
 type BoardClientProps = {
   session: Session
@@ -116,6 +125,9 @@ export function BoardClient({
           snapshotData.cards.map((c) => ({
             ...c,
             session_token: session.token,
+            group_id: c.group_id ?? null,
+            group_label: c.group_label ?? null,
+            reactions: c.reactions ?? {},
           }))
         )
         setHistoryActionCards(
@@ -159,6 +171,29 @@ export function BoardClient({
     if (card) setActiveCard(card)
   }
 
+  // Agrupa dois cards relacionados (soltar um card em cima do outro)
+  const handleGroupCards = useCallback(async (cardId: string, targetCardId: string) => {
+    try {
+      await trackOperation(async () => {
+        const res = await fetch('/api/cards/group', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ card_id: cardId, target_card_id: targetCardId }),
+        })
+
+        if (res.ok) {
+          const { cards: updated } = await res.json()
+          broadcast({ type: 'cards_updated', payload: updated })
+        } else {
+          toast.error('Não foi possível agrupar os cards')
+        }
+      })
+    } catch (error) {
+      console.error('Error grouping cards:', error)
+      toast.error('Não foi possível agrupar os cards')
+    }
+  }, [broadcast, trackOperation])
+
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     setActiveCard(null)
     if (historyMode) return
@@ -166,7 +201,18 @@ export function BoardClient({
     if (!over) return
 
     const cardId = active.id as string
-    const targetColumn = over.id as string
+    const overId = String(over.id)
+
+    // Soltou sobre outro card → agrupar
+    if (overId.startsWith('card:')) {
+      const targetCardId = overId.slice('card:'.length)
+      if (targetCardId !== cardId) {
+        await handleGroupCards(cardId, targetCardId)
+      }
+      return
+    }
+
+    const targetColumn = overId
 
     // Only allow dropping on column droppables (good, bad, ideas)
     if (!['good', 'bad', 'ideas'].includes(targetColumn)) return
@@ -200,7 +246,37 @@ export function BoardClient({
       broadcast({ type: 'card_deleted', payload: { id: movedCard.id } })
       broadcast({ type: 'card_added', payload: card })
     }
-  }, [cards, broadcast, trackOperation, historyMode])
+  }, [cards, broadcast, trackOperation, historyMode, handleGroupCards])
+
+  // Anti-viés: enquanto o timer roda, os cards dos outros ficam ocultos até
+  // alguém revelar. Fora do estado "rodando" os cards são sempre visíveis.
+  const cardsHidden =
+    !historyMode &&
+    currentSession.timer_status === 'running' &&
+    !currentSession.cards_revealed
+
+  const handleToggleReveal = useCallback(async () => {
+    const revealed = !currentSession.cards_revealed
+    broadcast({ type: 'timer_update', payload: { cards_revealed: revealed } })
+
+    try {
+      await trackOperation(async () => {
+        const res = await fetch('/api/sessions/reveal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_token: session.token, revealed }),
+        })
+
+        if (!res.ok) {
+          broadcast({ type: 'timer_update', payload: { cards_revealed: !revealed } })
+          toast.error('Não foi possível atualizar a visibilidade dos cards')
+        }
+      })
+    } catch (error) {
+      console.error('Error toggling reveal:', error)
+      broadcast({ type: 'timer_update', payload: { cards_revealed: !revealed } })
+    }
+  }, [currentSession.cards_revealed, session.token, broadcast, trackOperation])
 
   const handleCloseRetro = async () => {
     if (isClosing) return
@@ -247,6 +323,9 @@ export function BoardClient({
         participantsCount={participants.length}
         isConnected={isConnected}
         isSyncing={pendingOps > 0}
+        canToggleReveal={!historyMode && currentSession.timer_status === 'running'}
+        cardsHidden={cardsHidden}
+        onToggleReveal={handleToggleReveal}
         onShowPrevActions={() => setShowPrevActions(true)}
         onShowAI={() => setShowAIPanel(true)}
         onCloseRetro={handleCloseRetro}
@@ -258,7 +337,7 @@ export function BoardClient({
           {historyMode && historyDate && (
             <HistoryBanner date={historyDate} onExit={handleExitHistory} />
           )}
-          <DndContext sensors={activeSensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <DndContext sensors={activeSensors} collisionDetection={boardCollisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-0">
               <BoardColumn
                 type="good"
@@ -267,6 +346,8 @@ export function BoardClient({
                 sessionToken={session.token}
                 participantId={participantId}
                 participantName={participantName}
+                cardsHidden={cardsHidden}
+                readOnly={historyMode}
                 broadcast={broadcast}
                 trackOperation={trackOperation}
               />
@@ -277,6 +358,8 @@ export function BoardClient({
                 sessionToken={session.token}
                 participantId={participantId}
                 participantName={participantName}
+                cardsHidden={cardsHidden}
+                readOnly={historyMode}
                 broadcast={broadcast}
                 trackOperation={trackOperation}
               />
@@ -287,6 +370,8 @@ export function BoardClient({
                 sessionToken={session.token}
                 participantId={participantId}
                 participantName={participantName}
+                cardsHidden={cardsHidden}
+                readOnly={historyMode}
                 broadcast={broadcast}
                 trackOperation={trackOperation}
               />
@@ -295,6 +380,7 @@ export function BoardClient({
                 sessionToken={session.token}
                 participantId={participantId}
                 participantName={participantName}
+                readOnly={historyMode}
                 broadcast={broadcast}
                 trackOperation={trackOperation}
               />

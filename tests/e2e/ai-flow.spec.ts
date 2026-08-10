@@ -57,8 +57,8 @@ test.describe('Fluxo de IA', () => {
     await page.getByRole('button', { name: 'Colar Retorno' }).click()
 
     const json = JSON.stringify([
-      { id: '1', text: 'Não fazer deploy na sexta', responsible: 'Tech Lead' },
-      { id: '2', text: 'Daily mais curta', responsible: null },
+      { id: '1', text: 'Não fazer deploy na sexta' },
+      { id: '2', text: 'Daily mais curta' },
     ])
     await page.locator('textarea').fill(json)
     await page.getByRole('button', { name: 'Confirmar' }).click()
@@ -74,7 +74,7 @@ test.describe('Fluxo de IA', () => {
     await page.getByRole('button', { name: 'Colar Retorno' }).click()
 
     const json = JSON.stringify([
-      { id: '1', text: 'Ação para aprovar', responsible: 'Time' },
+      { id: '1', text: 'Ação para aprovar' },
     ])
     await page.locator('textarea').fill(json)
     await page.getByRole('button', { name: 'Confirmar' }).click()
@@ -95,7 +95,7 @@ test.describe('Fluxo de IA', () => {
     await page.getByRole('button', { name: 'Colar Retorno' }).click()
 
     const json = JSON.stringify([
-      { id: '1', text: 'Texto original', responsible: 'PO' },
+      { id: '1', text: 'Texto original' },
     ])
     await page.locator('textarea').fill(json)
     await page.getByRole('button', { name: 'Confirmar' }).click()
@@ -105,9 +105,8 @@ test.describe('Fluxo de IA', () => {
     // Clicar Editar
     await page.getByRole('button', { name: 'Editar' }).click()
 
-    // Editar texto e responsável
+    // Editar texto
     await page.locator('.fixed textarea').fill('Texto editado pelo time')
-    await page.getByPlaceholder('Responsável (opcional)').fill('Tech Lead')
 
     // Aprovar com edição
     await page.getByRole('button', { name: 'Aprovar' }).click()
@@ -117,7 +116,6 @@ test.describe('Fluxo de IA', () => {
 
     // Verificar que o texto editado aparece na coluna Ações
     await expect(page.locator('[class*="column-actions"]').getByText('Texto editado pelo time')).toBeVisible()
-    await expect(page.locator('[class*="column-actions"]').getByText('Tech Lead')).toBeVisible()
   })
 
   test('rejeitar sugestão remove da lista', async ({ page }) => {
@@ -126,7 +124,7 @@ test.describe('Fluxo de IA', () => {
     await page.getByRole('button', { name: 'Colar Retorno' }).click()
 
     const json = JSON.stringify([
-      { id: '1', text: 'Ação para rejeitar', responsible: null },
+      { id: '1', text: 'Ação para rejeitar' },
     ])
     await page.locator('textarea').fill(json)
     await page.getByRole('button', { name: 'Confirmar' }).click()

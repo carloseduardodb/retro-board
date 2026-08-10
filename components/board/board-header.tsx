@@ -19,7 +19,9 @@ import {
   Home,
   StopCircle,
   Moon,
-  Sun
+  Sun,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -28,6 +30,10 @@ type BoardHeaderProps = {
   participantsCount: number
   isConnected: boolean
   isSyncing: boolean
+  /** Só é possível revelar/ocultar enquanto o timer está rodando. */
+  canToggleReveal: boolean
+  cardsHidden: boolean
+  onToggleReveal: () => void
   onShowPrevActions: () => void
   onShowAI: () => void
   onCloseRetro: () => void
@@ -38,6 +44,9 @@ export function BoardHeader({
   participantsCount,
   isConnected,
   isSyncing,
+  canToggleReveal,
+  cardsHidden,
+  onToggleReveal,
   onShowPrevActions,
   onShowAI,
   onCloseRetro,
@@ -107,6 +116,32 @@ export function BoardHeader({
             <Users className="w-4 h-4" />
             <span>{participantsCount}</span>
           </div>
+
+          {/* Reveal cards (anti-viés) — disponível enquanto o timer roda */}
+          {canToggleReveal && (
+            <Button
+              variant={cardsHidden ? 'default' : 'outline'}
+              size="sm"
+              onClick={onToggleReveal}
+              title={
+                cardsHidden
+                  ? 'Revelar os cards de todos os participantes'
+                  : 'Voltar a ocultar os cards dos outros participantes'
+              }
+            >
+              {cardsHidden ? (
+                <>
+                  <Eye className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Revelar cards</span>
+                </>
+              ) : (
+                <>
+                  <EyeOff className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Ocultar cards</span>
+                </>
+              )}
+            </Button>
+          )}
 
           {/* Theme toggle */}
           <Button

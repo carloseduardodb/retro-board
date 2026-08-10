@@ -1,3 +1,6 @@
+// Reações com emoji: emoji -> lista de participantIds que reagiram
+export type Reactions = Record<string, string[]>
+
 // Snapshot data interfaces for board_snapshots JSONB
 export interface SnapshotCard {
   id: string
@@ -7,6 +10,9 @@ export interface SnapshotCard {
   author_id: string
   votes: number
   voters: string[]
+  group_id?: string | null
+  group_label?: string | null
+  reactions?: Reactions
   created_at: string
 }
 
@@ -36,6 +42,7 @@ export type Database = {
           timer_minutes: number
           timer_ends_at: string | null
           timer_remaining_seconds: number | null
+          cards_revealed: boolean
         }
         Insert: {
           token: string
@@ -45,6 +52,7 @@ export type Database = {
           timer_minutes?: number
           timer_ends_at?: string | null
           timer_remaining_seconds?: number | null
+          cards_revealed?: boolean
         }
         Update: {
           token?: string
@@ -54,6 +62,7 @@ export type Database = {
           timer_minutes?: number
           timer_ends_at?: string | null
           timer_remaining_seconds?: number | null
+          cards_revealed?: boolean
         }
       }
       cards: {
@@ -66,6 +75,9 @@ export type Database = {
           author_id: string
           votes: number
           voters: string[]
+          group_id: string | null
+          group_label: string | null
+          reactions: Reactions
           created_at: string
         }
         Insert: {
@@ -77,6 +89,9 @@ export type Database = {
           author_id: string
           votes?: number
           voters?: string[]
+          group_id?: string | null
+          group_label?: string | null
+          reactions?: Reactions
           created_at?: string
         }
         Update: {
@@ -88,6 +103,9 @@ export type Database = {
           author_id?: string
           votes?: number
           voters?: string[]
+          group_id?: string | null
+          group_label?: string | null
+          reactions?: Reactions
           created_at?: string
         }
       }
@@ -224,6 +242,7 @@ export type Participant = {
 export type RealtimeEvent = 
   | { type: 'card_added'; payload: Card }
   | { type: 'card_updated'; payload: Card }
+  | { type: 'cards_updated'; payload: Card[] }
   | { type: 'card_deleted'; payload: { id: string } }
   | { type: 'action_added'; payload: ActionCard }
   | { type: 'action_updated'; payload: ActionCard }
