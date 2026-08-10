@@ -174,17 +174,23 @@ export default function HomePage() {
               O vídeo desta página é o mesmo que o seu time recebe
             </h2>
             <p className="mt-6 text-muted-foreground">
-              A composição que você acabou de assistir aceita qualquer sessão como entrada. Abra{' '}
+              O vídeo que você acabou de assistir aceita qualquer sessão como entrada. Abra{' '}
               <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">
                 /board/SEUTOKEN/recap
               </code>{' '}
-              e ela toca a sua retro: os seus cards entrando, os seus votos subindo, os seus temas
+              e ele toca a sua retro: os seus cards entrando, os seus votos subindo, os seus temas
               se agrupando e as ações que o time se comprometeu a fazer.
             </p>
             <ul className="mt-6 space-y-3 text-sm text-muted-foreground">
               <li className="flex gap-3">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                Ótimo para quem faltou: 40 segundos contam a retro inteira.
+                Ótimo para quem faltou: os destaques da retro em menos de um minuto. Board grande
+                mostra os mais votados de cada coluna e diz quantos ficaram de fora.
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                O vídeo acompanha a retro que aconteceu: sem votos, sem agrupamento ou sem ações,
+                as cenas correspondentes simplesmente não entram.
               </li>
               <li className="flex gap-3">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
@@ -206,9 +212,9 @@ export default function HomePage() {
               {'}'})
             </p>
             <p className="mt-6 text-sm text-muted-foreground">
-              O board e a landing compartilham uma única composição Remotion. A landing passa uma
-              sessão fictícia; o board passa a sua. Não existe vídeo de marketing separado para
-              ficar desatualizado.
+              O board e esta página tocam o mesmo vídeo. Aqui ele roda com uma sessão de exemplo;
+              no seu board, com a sua. Não existe vídeo de propaganda separado para ficar
+              desatualizado.
             </p>
           </div>
         </div>
@@ -233,7 +239,7 @@ export default function HomePage() {
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-8 text-sm text-muted-foreground sm:flex-row lg:px-8">
           <span>Retro Board</span>
-          <span>Vídeo renderizado no navegador com Remotion</span>
+          <span>Sem cadastro, sem instalação — a sessão é o link</span>
         </div>
       </footer>
     </main>

@@ -219,14 +219,18 @@ function OutroOverlay({ data, from, duration }: { data: RecapData; from: number;
       </div>
       <div
         style={{
-          fontSize: 82,
+          fontSize: data.actions.length > 0 ? 82 : 66,
           fontWeight: 800,
           letterSpacing: -2.5,
+          textAlign: 'center',
           opacity: rise,
           transform: `translateY(${(1 - rise) * 20}px)`,
         }}
       >
-        {data.actions.length} ações. Zero atas.
+        {/* Sem ação nenhuma, comemorar seria zombar do time. */}
+        {data.actions.length > 0
+          ? `${data.actions.length} ${data.actions.length === 1 ? 'ação' : 'ações'}. Zero atas.`
+          : 'Esta retro ainda não virou ação.'}
       </div>
       <div style={{ fontSize: 30, opacity: 0.72 * rise }}>
         Retro Board · sessão {data.token} · abra o link e comece agora
