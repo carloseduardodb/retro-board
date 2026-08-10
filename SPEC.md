@@ -136,7 +136,7 @@ Formato JSON esperado:
 O header tem um botão de lápis que liga o **modo desenho**. Nele, uma camada de canvas cobre a área do board e o participante pode rabiscar por cima dos cards — os traços aparecem em tempo real para todos os participantes.
 
 - Quem **não** está em modo desenho continua vendo os rabiscos e interagindo normalmente com o board: a camada só captura o mouse para quem está desenhando.
-- Os traços são **efêmeros**: ficam nítidos por 4 segundos após o fim do traço e desaparecem em um fade de 1,5 s. Não são persistidos em banco nem entram nos snapshots.
+- Os traços são **efêmeros**, mas o relógio do fade é **por autor, não por traço**: enquanto a pessoa continua desenhando, nada do que ela já fez começa a sumir. Depois de 6 segundos sem desenhar, o desenho inteiro dela some junto, num fade de 2 s. Assim um desenho grande, feito com vários traços e várias soltadas do mouse, não desaparece pela metade enquanto ainda está sendo feito. Nada é persistido em banco nem entra nos snapshots.
 - Cada participante tem uma cor padrão derivada do seu `participantId`; a barra flutuante permite trocar entre 6 cores, limpar todos os rabiscos e sair (também via `Esc`).
 - Os pontos são normalizados (0..1) em relação à área do board, para que o traço caia no lugar equivalente em telas de tamanhos diferentes.
 - Transporte: canal de broadcast próprio (`draw:<token>`), separado do canal do board, com os pontos enviados em lotes a cada 60 ms. Nada disso passa pelo estado do React — o canvas lê os traços de um ref dentro de um `requestAnimationFrame`.
