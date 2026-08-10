@@ -3,7 +3,7 @@ import { test, expect, Browser, Page } from '@playwright/test'
 async function createSession(browser: Browser): Promise<{ url: string; token: string }> {
   const context = await browser.newContext()
   const page = await context.newPage()
-  await page.goto('http://localhost:3000')
+  await page.goto('/')
   await page.getByRole('button', { name: 'Criar Sessão' }).click()
   await page.waitForURL(/\/board\/[A-Z0-9]{6}/)
   const url = page.url()
@@ -62,9 +62,10 @@ test.describe('Multi-usuário - Tempo Real', () => {
     const joao = await joinAsUser(browser, boardUrl, 'João RT')
 
     // João adiciona card
-    await joao.getByRole('button', { name: 'Adicionar' }).first().click()
-    await joao.getByPlaceholder('Digite seu feedback...').fill('Feedback do João')
-    await joao.locator('[class*="border-dashed"]').first().locator('button').last().click()
+    const column = joao.getByTestId('column-good')
+    await column.getByRole('button', { name: 'Adicionar' }).click()
+    await column.getByPlaceholder('Digite seu feedback...').fill('Feedback do João')
+    await column.locator('[class*="border-dashed"]').locator('button').last().click()
 
     // Maria deve ver o card
     await expect(maria.getByText('Feedback do João')).toBeVisible({ timeout: 10000 })

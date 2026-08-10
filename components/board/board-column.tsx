@@ -457,6 +457,7 @@ export function BoardColumn({
   return (
     <div
       ref={setNodeRef}
+      data-testid={`column-${type}`}
       className={cn(
         'rounded-lg border flex flex-col transition-colors min-h-0',
         styles.bg,
@@ -927,7 +928,7 @@ function RetroCard({
   // próprio — quem dá a moldura é o bloco do grupo.
   if (inGroup) {
     return (
-      <div ref={setDropRef}>
+      <div ref={setDropRef} data-card-id={card.id}>
         <div
           ref={setNodeRef}
           style={style}
@@ -944,7 +945,7 @@ function RetroCard({
   }
 
   return (
-    <div ref={setDropRef}>
+    <div ref={setDropRef} data-card-id={card.id}>
       <Card
         ref={setNodeRef}
         style={style}

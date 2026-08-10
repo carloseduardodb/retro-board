@@ -6,8 +6,13 @@ test.describe('Tela Inicial', () => {
   })
 
   test('exibe título e descrição', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Retro Board' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('A retro do seu time')
     await expect(page.getByText('Retrospectiva colaborativa em tempo real')).toBeVisible()
+  })
+
+  test('exibe o recap em vídeo do board', async ({ page }) => {
+    await expect(page.getByText(/board desenhado quadro a quadro/i)).toBeVisible()
+    await expect(page.getByRole('heading', { name: /Role a página e conduza a retro/i })).toBeVisible()
   })
 
   test('exibe abas Nova Sessão e Entrar', async ({ page }) => {

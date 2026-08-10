@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test'
 
+// Permite apontar a suíte para uma instância já rodando em outra porta
+// (`E2E_BASE_URL=http://localhost:3001 npm run test:e2e`) — útil quando a 3000
+// está ocupada por outro projeto.
+const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:3000'
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -8,7 +13,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL,
     trace: 'on-first-retry',
   },
   projects: [
@@ -19,7 +24,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:3000',
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 30000,
   },

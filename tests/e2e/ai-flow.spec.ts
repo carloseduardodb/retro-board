@@ -21,7 +21,7 @@ test.describe('Fluxo de IA', () => {
 
   test('abre painel de IA com prompt para copiar', async ({ page }) => {
     // Open dropdown menu (the outline button in the header)
-    await page.locator('header button').nth(1).click()
+    await page.getByRole('button', { name: 'Mais ações' }).click()
     await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
 
     await expect(page.getByText('Sugestões via IA Externa')).toBeVisible()
@@ -31,7 +31,7 @@ test.describe('Fluxo de IA', () => {
   })
 
   test('navega para tela de colar JSON', async ({ page }) => {
-    await page.locator('header button').nth(1).click()
+    await page.getByRole('button', { name: 'Mais ações' }).click()
     await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
     await page.getByRole('button', { name: 'Colar Retorno' }).click()
 
@@ -41,7 +41,7 @@ test.describe('Fluxo de IA', () => {
   })
 
   test('rejeita JSON inválido', async ({ page }) => {
-    await page.locator('header button').nth(1).click()
+    await page.getByRole('button', { name: 'Mais ações' }).click()
     await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
     await page.getByRole('button', { name: 'Colar Retorno' }).click()
 
@@ -52,7 +52,7 @@ test.describe('Fluxo de IA', () => {
   })
 
   test('aceita JSON válido e cria sugestões pendentes', async ({ page }) => {
-    await page.locator('header button').nth(1).click()
+    await page.getByRole('button', { name: 'Mais ações' }).click()
     await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
     await page.getByRole('button', { name: 'Colar Retorno' }).click()
 
@@ -69,7 +69,7 @@ test.describe('Fluxo de IA', () => {
   })
 
   test('aprovar sugestão cria card na coluna Ações', async ({ page }) => {
-    await page.locator('header button').nth(1).click()
+    await page.getByRole('button', { name: 'Mais ações' }).click()
     await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
     await page.getByRole('button', { name: 'Colar Retorno' }).click()
 
@@ -86,11 +86,11 @@ test.describe('Fluxo de IA', () => {
     await page.locator('.fixed button:has(svg)').first().click()
 
     // Verificar na coluna Ações
-    await expect(page.locator('[class*="column-actions"]').getByText('Ação para aprovar')).toBeVisible()
+    await expect(page.getByTestId('column-actions').getByText('Ação para aprovar')).toBeVisible()
   })
 
   test('editar sugestão antes de aprovar', async ({ page }) => {
-    await page.locator('header button').nth(1).click()
+    await page.getByRole('button', { name: 'Mais ações' }).click()
     await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
     await page.getByRole('button', { name: 'Colar Retorno' }).click()
 
@@ -115,11 +115,11 @@ test.describe('Fluxo de IA', () => {
     await page.locator('.fixed button:has(svg)').first().click()
 
     // Verificar que o texto editado aparece na coluna Ações
-    await expect(page.locator('[class*="column-actions"]').getByText('Texto editado pelo time')).toBeVisible()
+    await expect(page.getByTestId('column-actions').getByText('Texto editado pelo time')).toBeVisible()
   })
 
   test('rejeitar sugestão remove da lista', async ({ page }) => {
-    await page.locator('header button').nth(1).click()
+    await page.getByRole('button', { name: 'Mais ações' }).click()
     await page.getByRole('menuitem', { name: 'Gerar Ações com IA' }).click()
     await page.getByRole('button', { name: 'Colar Retorno' }).click()
 
