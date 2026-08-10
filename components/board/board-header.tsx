@@ -20,7 +20,8 @@ import {
   StopCircle,
   Moon,
   Sun,
-  Pencil
+  Pencil,
+  Clapperboard
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -82,6 +83,7 @@ export function BoardHeader({
               size="sm"
               className="h-6 w-6 p-0"
               onClick={copyLink}
+              aria-label="Copiar link da sessão"
             >
               {copied ? (
                 <Check className="w-3 h-3 text-green-600" />
@@ -141,7 +143,7 @@ export function BoardHeader({
           {/* Actions dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" aria-label="Mais ações">
                 <MoreHorizontal className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -153,6 +155,12 @@ export function BoardHeader({
               <DropdownMenuItem onClick={onShowAI}>
                 <Sparkles className="w-4 h-4 mr-2" />
                 Gerar Ações com IA
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/board/${token}/recap`}>
+                  <Clapperboard className="w-4 h-4 mr-2" />
+                  Ver recap em vídeo
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onCloseRetro} className="text-destructive focus:text-destructive">
                 <StopCircle className="w-4 h-4 mr-2" />
