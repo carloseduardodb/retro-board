@@ -11,7 +11,6 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: 'Retro Board - Retrospectiva Colaborativa',
   description: 'Ferramenta de retrospectiva Scrum colaborativa em tempo real para equipes ágeis',
-  generator: 'v0.app',
   icons: {
     icon: [
       {
