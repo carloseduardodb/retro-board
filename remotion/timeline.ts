@@ -93,6 +93,11 @@ export type Timeline = {
     spotlightFrom: number
   }
   hasGroups: boolean
+  hasVotes: boolean
+  hasActions: boolean
+  /** Cards que não couberam em cada coluna — declarados em tela. */
+  omitted: Record<'good' | 'bad' | 'ideas', number>
+  omittedActions: number
   durationInFrames: number
 }
 
@@ -195,15 +200,27 @@ function computeLayout(cards: RecapCard[], mode: LayoutMode): {
   return { placements, groups }
 }
 
-/** Recorta os dados ao que cabe em tela — o recap mostra os destaques, não tudo. */
-export function trimData(data: RecapData): RecapData {
+export type TrimResult = {
+  data: RecapData
+  /** Quantos cards de cada coluna não couberam — o vídeo declara isso em tela. */
+  omitted: Record<'good' | 'bad' | 'ideas', number>
+  omittedActions: number
+}
+
+/**
+ * Recorta os dados ao que cabe em tela e **devolve o que ficou de fora**.
+ * Cortar em silêncio faria o vídeo mostrar 4 cards com o contador da coluna
+ * dizendo 4, enquanto o board tem 7 — o recap mentiria sobre a própria retro.
+ */
+export function trimData(data: RecapData): TrimResult {
   const cards: RecapCard[] = []
+  const omitted = { good: 0, bad: 0, ideas: 0 }
   for (const column of ['good', 'bad', 'ideas'] as const) {
-    const top = data.cards
+    const all = data.cards
       .filter((c) => c.column === column)
       .sort((a, b) => b.votes - a.votes || sortChronological(a, b))
-      .slice(0, MAX_CARDS_PER_COLUMN)
-    cards.push(...top)
+    omitted[column] = Math.max(0, all.length - MAX_CARDS_PER_COLUMN)
+    cards.push(...all.slice(0, MAX_CARDS_PER_COLUMN))
   }
   // Grupos que perderam membros no corte deixam de ser grupos.
   const groupCounts = new Map<string, number>()
@@ -221,22 +238,34 @@ export function trimData(data: RecapData): RecapData {
   }))
 
   return {
-    ...data,
-    cards: trimmed,
-    actions: data.actions.slice(0, MAX_ACTIONS).map((action) => ({
-      ...action,
-      text:
-        action.text.length > MAX_CARD_CHARS
-          ? `${action.text.slice(0, MAX_CARD_CHARS - 1).trimEnd()}…`
-          : action.text,
-    })),
+    data: {
+      ...data,
+      cards: trimmed,
+      actions: data.actions.slice(0, MAX_ACTIONS).map((action) => ({
+        ...action,
+        text:
+          action.text.length > MAX_CARD_CHARS
+            ? `${action.text.slice(0, MAX_CARD_CHARS - 1).trimEnd()}…`
+            : action.text,
+      })),
+    },
+    omitted,
+    omittedActions: Math.max(0, data.actions.length - MAX_ACTIONS),
   }
 }
 
 export function buildTimeline(raw: RecapData): Timeline {
-  const data = trimData(raw)
+  const { data, omitted, omittedActions } = trimData(raw)
   const cards = data.cards
+
+  // Cada cena só entra se a retro tiver o que ela narra. Sem isso o vídeo
+  // anuncia "votos reordenam o board" sobre cards zerados, ou circula um card
+  // "mais votado" que ninguém votou.
   const hasGroups = cards.some((c) => c.groupId)
+  const hasVotes = cards.some((c) => c.votes > 0)
+  const hasReactions = cards.some((c) => Object.keys(c.reactions).length > 0)
+  const hasEngagement = hasVotes || hasReactions
+  const hasActions = data.actions.length > 0
 
   const chronological = computeLayout(cards, { rank: false, group: false })
   const ranked = computeLayout(cards, { rank: true, group: false })
@@ -273,9 +302,11 @@ export function buildTimeline(raw: RecapData): Timeline {
   })
   const vote = push({
     id: 'vote',
-    duration: voteDuration,
-    title: 'Votos e reações reordenam o board',
-    subtitle: 'O que importa para o time sobe sozinho',
+    duration: hasEngagement ? voteDuration : 0,
+    title: hasVotes ? 'Votos e reações reordenam o board' : 'As reações do time',
+    subtitle: hasVotes
+      ? 'O que importa para o time sobe sozinho'
+      : 'Reagir não muda a ordem — só marca o que ressoou',
   })
   const group = push({
     id: 'group',
@@ -283,15 +314,19 @@ export function buildTimeline(raw: RecapData): Timeline {
     title: 'Temas repetidos viram um bloco só',
     subtitle: 'Arraste um card sobre o outro e os votos somam',
   })
+  // O destaque é uma anotação do próprio recap, não a reprodução de um rabisco:
+  // os traços do modo desenho são efêmeros e nunca chegam ao banco.
   push({
     id: 'draw',
-    duration: 130,
-    title: 'Rabisque por cima, ao vivo',
-    subtitle: 'Traços efêmeros que todo mundo vê e que somem sozinhos',
+    duration: hasVotes ? 130 : 0,
+    title: 'O card que mais pesou',
+    subtitle: hasActions
+      ? 'O recap circula o mais votado e aponta para o que virou ação'
+      : 'O recap circula o card mais votado da retro',
   })
   const actionsScene = push({
     id: 'actions',
-    duration: 90 + data.actions.length * 16 + 70,
+    duration: hasActions ? 90 + data.actions.length * 16 + 70 : 0,
     title: 'A retro termina em ações',
     subtitle: 'Elas voltam marcadas na próxima sprint',
   })
@@ -307,8 +342,10 @@ export function buildTimeline(raw: RecapData): Timeline {
   const byVotes = [...cards].sort((a, b) => b.votes - a.votes || sortChronological(a, b))
 
   const revealAt = reveal.from + 24
-  const rankFrom = vote.from + 40 + cards.length * 6
-  const rankTo = rankFrom + 30
+  // Sem votos a ordenação final é igual à cronológica; a janela existe só para
+  // `interpolate` não receber um intervalo degenerado.
+  const rankFrom = hasEngagement ? vote.from + 40 + cards.length * 6 : vote.from
+  const rankTo = rankFrom + (hasEngagement ? 30 : 1)
   const groupFrom = hasGroups ? group.from + 20 : rankTo
   // Sem grupos o layout final é igual ao ordenado, mas a janela precisa ter
   // largura > 0: `interpolate` rejeita um intervalo degenerado.
@@ -345,9 +382,14 @@ export function buildTimeline(raw: RecapData): Timeline {
       rankTo,
       groupFrom,
       groupTo,
-      spotlightFrom: actionsScene.from + 20,
+      // Sem ações não há holofote: um frame além do fim nunca é alcançado.
+      spotlightFrom: hasActions ? actionsScene.from + 20 : cursor + 60,
     },
     hasGroups,
+    hasVotes,
+    hasActions,
+    omitted,
+    omittedActions,
     durationInFrames: cursor,
   }
 }

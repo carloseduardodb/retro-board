@@ -57,6 +57,7 @@ export function Stage({ data, timeline }: StageProps) {
                 ? timeline.actions.filter((a) => frame >= a.appear).length
                 : timeline.cards.filter((c) => c.card.column === column && frame >= c.appear).length
             }
+            omitted={column === 'actions' ? timeline.omittedActions : timeline.omitted[column]}
           />
         ))}
 
@@ -196,13 +197,16 @@ function Pill({ children, style }: { children: React.ReactNode; style?: React.CS
 function ColumnFrame({
   column,
   count,
+  omitted,
   dimmed,
 }: {
   column: keyof typeof columns
   count: number
+  omitted: number
   dimmed: number
 }) {
   const meta = columns[column]
+  const label = column === 'actions' ? 'ações' : 'cards'
   return (
     <div
       style={{
@@ -228,8 +232,13 @@ function ColumnFrame({
       >
         <span style={{ width: 12, height: 12, borderRadius: 4, backgroundColor: meta.accent }} />
         <span style={{ fontSize: 21, fontWeight: 700, color: meta.ink }}>{meta.title}</span>
-        <span style={{ marginLeft: 'auto', fontSize: 18, color: meta.ink, opacity: 0.6 }}>{count}</span>
+        {/* Com corte, o contador diz quantos de quantos — mostrar só os exibidos
+            faria o vídeo declarar 4 num board de 7. */}
+        <span style={{ marginLeft: 'auto', fontSize: 18, color: meta.ink, opacity: 0.6 }}>
+          {omitted > 0 ? `${count} de ${count + omitted} ${label}` : count}
+        </span>
       </div>
+
       <div style={{ position: 'absolute', inset: 0, backgroundColor: '#0b1020', opacity: dimmed * 0.55 }} />
     </div>
   )
@@ -540,9 +549,10 @@ function Scribbles({ timeline }: { timeline: Timeline }) {
   const frame = useCurrentFrame()
   const draw = timeline.scene('draw')
 
-  // O traço destaca o card mais votado — o mesmo gesto que alguém faria ao vivo.
+  // Anotação do recap sobre o card mais votado. Sem votos não há o que destacar
+  // e a cena nem existe (`duration: 0`) — desenhar aqui seria inventar um gesto.
   const highlight = [...timeline.cards].sort((a, b) => b.card.votes - a.card.votes)[0]
-  if (!highlight) return null
+  if (draw.duration === 0 || !highlight) return null
 
   const target = timeline.hasGroups ? highlight.grouped : highlight.ranked
   const loop = handDrawnLoop(target.x, target.y, target.width, target.height)
@@ -574,21 +584,26 @@ function Scribbles({ timeline }: { timeline: Timeline }) {
           strokeDasharray={1}
           strokeDashoffset={1 - drawLoop}
         />
-        <path
-          d={arrow}
-          pathLength={1}
-          fill="none"
-          stroke={ink}
-          strokeWidth={7}
-          strokeLinecap="round"
-          strokeDasharray={1}
-          strokeDashoffset={1 - drawArrow}
-        />
-        {drawArrow > 0.98 && (
-          <g stroke={ink} strokeWidth={7} strokeLinecap="round" fill="none">
-            <path d={`M ${arrowToX},${arrowToY} l -26,26`} />
-            <path d={`M ${arrowToX},${arrowToY} l 22,28`} />
-          </g>
+        {/* A seta só existe se houver ação para apontar. */}
+        {timeline.hasActions && (
+          <>
+            <path
+              d={arrow}
+              pathLength={1}
+              fill="none"
+              stroke={ink}
+              strokeWidth={7}
+              strokeLinecap="round"
+              strokeDasharray={1}
+              strokeDashoffset={1 - drawArrow}
+            />
+            {drawArrow > 0.98 && (
+              <g stroke={ink} strokeWidth={7} strokeLinecap="round" fill="none">
+                <path d={`M ${arrowToX},${arrowToY} l -26,26`} />
+                <path d={`M ${arrowToX},${arrowToY} l 22,28`} />
+              </g>
+            )}
+          </>
         )}
       </svg>
     </AbsoluteFill>
