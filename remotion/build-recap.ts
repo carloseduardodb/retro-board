@@ -4,6 +4,7 @@
  * a mesma peça.
  */
 
+import { cardWeight } from '@/lib/card-weight'
 import type { ActionCard, Card, Session } from '@/lib/types/database'
 import type { RecapCard, RecapData } from './types'
 
@@ -38,6 +39,9 @@ export function buildRecapData({
     text: card.text,
     votes: card.votes ?? 0,
     reactions: countReactions(card.reactions),
+    // Calculado sobre as reações inteiras, não sobre os três chips que sobram
+    // de `countReactions` — senão o peso mudaria conforme o que cabe em tela.
+    weight: cardWeight(card),
     groupId: card.group_id,
     groupLabel: card.group_label,
     createdAt: card.created_at,

@@ -38,8 +38,10 @@ import {
   ChevronRight,
   EyeOff,
   ListChecks,
+  SmilePlus,
 } from 'lucide-react'
 import type { Card as CardType, RealtimeEvent } from '@/lib/types/database'
+import { cardWeight, reactionCount } from '@/lib/card-weight'
 import { cn } from '@/lib/utils'
 import { useDroppable, useDraggable } from '@dnd-kit/core'
 import { CardReactions } from '@/components/board/card-reactions'
@@ -84,9 +86,15 @@ const columnLabels: Record<ColumnType, string> = {
   ideas: 'Ideias',
 }
 
-/** Um item da lista da coluna: um card solto ou um grupo de cards relacionados. */
+/**
+ * Um item da lista da coluna: um card solto ou um grupo de cards relacionados.
+ *
+ * `weight` é o que ordena — votos mais reações (ver `lib/card-weight.ts`). Os
+ * dois números seguem separados para o grupo poder exibir cada um com o seu
+ * ícone, em vez de um total que ninguém confere olhando.
+ */
 type ColumnEntry =
-  | { kind: 'card'; key: string; card: CardType; votes: number; createdAt: number }
+  | { kind: 'card'; key: string; card: CardType; weight: number; createdAt: number }
   | {
       kind: 'group'
       key: string
@@ -94,6 +102,8 @@ type ColumnEntry =
       label: string | null
       cards: CardType[]
       votes: number
+      reactions: number
+      weight: number
       createdAt: number
     }
 
@@ -114,7 +124,7 @@ function buildEntries(cards: CardType[]): ColumnEntry[] {
         kind: 'card',
         key: card.id,
         card,
-        votes: card.votes,
+        weight: cardWeight(card),
         createdAt: new Date(card.created_at).getTime(),
       })
     }
@@ -128,14 +138,15 @@ function buildEntries(cards: CardType[]): ColumnEntry[] {
         kind: 'card',
         key: card.id,
         card,
-        votes: card.votes,
+        weight: cardWeight(card),
         createdAt: new Date(card.created_at).getTime(),
       })
       continue
     }
 
     const sorted = [...groupCards].sort((a, b) => {
-      if (b.votes !== a.votes) return b.votes - a.votes
+      const peso = cardWeight(b) - cardWeight(a)
+      if (peso !== 0) return peso
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
 
@@ -146,12 +157,14 @@ function buildEntries(cards: CardType[]): ColumnEntry[] {
       label: sorted.find((c) => c.group_label)?.group_label ?? null,
       cards: sorted,
       votes: sorted.reduce((sum, c) => sum + c.votes, 0),
+      reactions: sorted.reduce((sum, c) => sum + reactionCount(c.reactions), 0),
+      weight: sorted.reduce((sum, c) => sum + cardWeight(c), 0),
       createdAt: Math.max(...sorted.map((c) => new Date(c.created_at).getTime())),
     })
   }
 
   return entries.sort((a, b) => {
-    if (b.votes !== a.votes) return b.votes - a.votes
+    if (b.weight !== a.weight) return b.weight - a.weight
     return b.createdAt - a.createdAt
   })
 }
@@ -574,6 +587,7 @@ export function BoardColumn({
               label={entry.label}
               count={entry.cards.length}
               votes={entry.votes}
+              reactions={entry.reactions}
               readOnly={readOnly}
               onRename={(label) => handleRenameGroup(entry.groupId, label)}
               onUngroupAll={() => handleUngroupAll(entry.groupId)}
@@ -594,6 +608,7 @@ type CardGroupProps = {
   label: string | null
   count: number
   votes: number
+  reactions: number
   readOnly: boolean
   onRename: (label: string) => void
   onUngroupAll: () => void
@@ -611,6 +626,7 @@ function CardGroup({
   label,
   count,
   votes,
+  reactions,
   readOnly,
   onRename,
   onUngroupAll,
@@ -713,6 +729,17 @@ function CardGroup({
             <ThumbsUp className="h-3 w-3" />
             {votes}
           </span>
+          {/* Reações contam junto na ordenação, então aparecem junto no selo —
+              um total só, com ícone de joinha, seria um número não conferível. */}
+          {reactions > 0 && (
+            <span
+              title={`${reactions} reações no grupo`}
+              className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-muted-foreground"
+            >
+              <SmilePlus className="h-3 w-3" />
+              {reactions}
+            </span>
+          )}
 
           {!readOnly && (
             <Button

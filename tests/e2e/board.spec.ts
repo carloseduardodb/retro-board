@@ -204,3 +204,54 @@ test.describe('Board - Card vira ação', () => {
     await expect(origem.locator('[data-card-id]')).toHaveCount(0)
   })
 })
+
+test.describe('Board - Peso do card', () => {
+  test('reações contam junto com os votos na ordenação', async ({ page }) => {
+    const token = await createSessionAndEnter(page)
+    const coluna = page.getByTestId('column-good')
+
+    await addCard(page, 'good', 'Card com votos')
+    await addCard(page, 'good', 'Card com reacoes')
+
+    const ids = await coluna.locator('[data-card-id]').evaluateAll((els) =>
+      els.map((e) => ({ id: e.getAttribute('data-card-id'), texto: e.textContent ?? '' }))
+    )
+    const comVotos = ids.find((c) => c.texto.includes('Card com votos'))!.id
+    const comReacoes = ids.find((c) => c.texto.includes('Card com reacoes'))!.id
+
+    // Três votos contra quatro reações: reagir também é dizer que importa, então
+    // o card reagido tem de subir mesmo sem nenhum joinha.
+    await page.evaluate(
+      async ({ token, comVotos, comReacoes }) => {
+        const post = (url: string, body: unknown) =>
+          fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          })
+        for (let i = 0; i < 3; i++) {
+          await post('/api/cards/vote', {
+            card_id: comVotos,
+            participant_id: `v${i}-${token}`,
+            action: 'vote',
+          })
+        }
+        for (let i = 0; i < 4; i++) {
+          await post('/api/cards/react', {
+            card_id: comReacoes,
+            participant_id: `r${i}-${token}`,
+            emoji: '🚀',
+          })
+        }
+      },
+      { token, comVotos, comReacoes }
+    )
+
+    await page.reload()
+    await expect(coluna.locator('[data-card-id]')).toHaveCount(2)
+    const ordem = await coluna.locator('[data-card-id] p').allInnerTexts()
+    expect(ordem[0]).toContain('Card com reacoes')
+    expect(ordem[1]).toContain('Card com votos')
+  })
+})
+
