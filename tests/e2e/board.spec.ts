@@ -62,6 +62,21 @@ test.describe('Board - Colunas e Layout', () => {
   })
 })
 
+/**
+ * Cria um card e espera o id definitivo do servidor. O card entra otimista com
+ * um id temporário e é trocado quando o POST responde — a troca remonta o card
+ * e fecharia um menu aberto logo em seguida.
+ */
+async function addCard(page: Page, column: 'good' | 'bad' | 'ideas', text: string) {
+  const col = page.getByTestId(`column-${column}`)
+  await col.getByRole('button', { name: 'Adicionar' }).click()
+  await col.getByPlaceholder('Digite seu feedback...').fill(text)
+  await col.locator('[class*="border-dashed"]').locator('button').last().click()
+  await expect(
+    col.locator('[data-card-id]:not([data-card-id^="temp-"])').filter({ hasText: text })
+  ).toHaveCount(1, { timeout: 10000 })
+}
+
 test.describe('Board - Cards Anônimos', () => {
   test.beforeEach(async ({ page }) => {
     await createSessionAndEnter(page)
@@ -126,9 +141,29 @@ test.describe('Board - Coluna Ações', () => {
     await expect(page.getByText('Ação do time')).toBeVisible()
   })
 
-  test('não oferece campo de responsável', async ({ page }) => {
-    await page.getByRole('button', { name: 'Adicionar Ação' }).click()
-    await expect(page.getByPlaceholder('Responsável (opcional)')).toHaveCount(0)
+  test('registra o responsável pela ação', async ({ page }) => {
+    const column = page.getByTestId('column-actions')
+
+    await column.getByRole('button', { name: 'Adicionar Ação' }).click()
+    await column.getByPlaceholder('Descreva a ação...').fill('Quebrar o job da CI')
+    await column.getByPlaceholder('Responsável (opcional)').fill('Diego')
+    await column.locator('[class*="border-dashed"]').locator('button').last().click()
+
+    const actionCard = column.locator('[data-action-id]').filter({ hasText: 'Quebrar o job da CI' })
+    await expect(actionCard).toHaveCount(1, { timeout: 10000 })
+    await expect(actionCard.getByText('Diego')).toBeVisible()
+  })
+
+  test('responsável sugere quem está na sala', async ({ page }) => {
+    const column = page.getByTestId('column-actions')
+    await column.getByRole('button', { name: 'Adicionar Ação' }).click()
+
+    // O campo é livre — quem vai tocar a ação pode não estar na retro —, mas
+    // oferece os presentes como atalho.
+    const field = column.getByPlaceholder('Responsável (opcional)')
+    const listId = await field.getAttribute('list')
+    expect(listId).toBeTruthy()
+    await expect(page.locator(`#${listId} option`).first()).toHaveAttribute('value', /.+/)
   })
 
   test('edita uma ação existente', async ({ page }) => {
@@ -145,5 +180,27 @@ test.describe('Board - Coluna Ações', () => {
     await actionsColumn.locator('button:has(svg)').last().click()
 
     await expect(actionsColumn.getByText('Melhorar testes de integração')).toBeVisible()
+  })
+})
+
+test.describe('Board - Card vira ação', () => {
+  test('mover para Ações tira o card da coluna de origem', async ({ page }) => {
+    await createSessionAndEnter(page)
+    await addCard(page, 'bad', 'Build da CI passou de 18 minutos')
+
+    const origem = page.getByTestId('column-bad')
+    await origem.locator('[data-card-id]').first().hover()
+    await origem.getByTitle('Ações do card').click()
+
+    // O menu do Radix abre com animação; clicar antes de assentar não pega.
+    const item = page.getByRole('menuitem', { name: 'Transformar em ação' })
+    await expect(item).toBeVisible()
+    await page.waitForTimeout(300)
+    await item.click()
+
+    // Ações vivem noutra tabela: o card sai de vez, sem cópia para trás.
+    const acoes = page.getByTestId('column-actions')
+    await expect(acoes.getByText('Build da CI passou de 18 minutos')).toBeVisible({ timeout: 10000 })
+    await expect(origem.locator('[data-card-id]')).toHaveCount(0)
   })
 })

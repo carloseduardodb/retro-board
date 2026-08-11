@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { denyUnlessOwner } from '@/lib/ownership'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -20,7 +21,9 @@ export async function POST(request: Request) {
       .insert({
         session_token,
         text,
-        responsible: responsible || null,
+        responsible: typeof responsible === 'string' && responsible.trim()
+          ? responsible.trim().slice(0, 60)
+          : null,
         author,
         author_id,
       })
@@ -50,25 +53,64 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await request.json()
-    const { id, text } = body
+    const { id, text, responsible, author_id } = body
 
-    if (!id || typeof text !== 'string') {
+    if (!id) {
       return NextResponse.json(
         { error: 'invalid_payload', message: 'Campos obrigatórios faltando' },
         { status: 400 }
       )
     }
 
-    if (!text.trim() || text.length > 500) {
+    const updateData: Record<string, unknown> = {}
+
+    if (text !== undefined) {
+      if (typeof text !== 'string' || !text.trim() || text.length > 500) {
+        return NextResponse.json(
+          { error: 'invalid_payload', message: 'Texto inválido (vazio ou acima de 500 caracteres)' },
+          { status: 400 }
+        )
+      }
+      updateData.text = text.trim()
+    }
+
+    // O responsável é quem vai tocar a ação, não quem a escreveu — pode ser
+    // alguém que nem estava na retro, então é texto livre.
+    if (responsible !== undefined) {
+      if (responsible !== null && typeof responsible !== 'string') {
+        return NextResponse.json(
+          { error: 'invalid_payload', message: 'Responsável inválido' },
+          { status: 400 }
+        )
+      }
+      const name = typeof responsible === 'string' ? responsible.trim() : ''
+      if (name.length > 60) {
+        return NextResponse.json(
+          { error: 'invalid_payload', message: 'Responsável acima de 60 caracteres' },
+          { status: 400 }
+        )
+      }
+      updateData.responsible = name || null
+    }
+
+    if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { error: 'invalid_payload', message: 'Texto inválido (vazio ou acima de 500 caracteres)' },
+        { error: 'invalid_payload', message: 'Nenhum campo para atualizar' },
         { status: 400 }
+      )
+    }
+
+    const denial = await denyUnlessOwner(supabase, 'action_cards', id, author_id)
+    if (denial) {
+      return NextResponse.json(
+        { error: denial.error, message: denial.message },
+        { status: denial.status },
       )
     }
 
     const { data, error } = await supabase
       .from('action_cards')
-      .update({ text: text.trim() })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single()
@@ -101,6 +143,11 @@ export async function DELETE(request: Request) {
       { error: 'ID é obrigatório' },
       { status: 400 }
     )
+  }
+
+  const denial = await denyUnlessOwner(supabase, 'action_cards', id, searchParams.get('author_id'))
+  if (denial) {
+    return NextResponse.json({ error: denial.error, message: denial.message }, { status: denial.status })
   }
 
   const { error } = await supabase

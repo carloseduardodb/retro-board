@@ -361,6 +361,7 @@ export function BoardClient({
                 sessionToken={session.token}
                 participantId={participantId}
                 participantName={participantName}
+                participants={participants}
                 readOnly={historyMode}
                 broadcast={broadcast}
                 trackOperation={trackOperation}

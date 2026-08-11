@@ -190,9 +190,15 @@ export function DrawingLayer({ sessionToken, participantId, isDrawing, onExit }:
 
           <span className="mx-1 h-5 w-px bg-border" />
 
-          <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={clear} title="Apagar todos os rabiscos">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 px-2 text-xs"
+            onClick={clear}
+            title="Apagar os seus rabiscos (os dos outros ficam)"
+          >
             <Eraser className="h-3.5 w-3.5" />
-            Limpar
+            Limpar o meu
           </Button>
 
           <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={onExit} title="Sair do modo desenho (Esc)">

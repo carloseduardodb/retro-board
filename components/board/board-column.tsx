@@ -37,6 +37,7 @@ import {
   ChevronDown,
   ChevronRight,
   EyeOff,
+  ListChecks,
 } from 'lucide-react'
 import type { Card as CardType, RealtimeEvent } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
@@ -313,7 +314,9 @@ export function BoardColumn({
 
     try {
       await trackOperation(async () => {
-        await fetch(`/api/cards?id=${cardId}`, { method: 'DELETE' })
+        await fetch(`/api/cards?id=${cardId}&author_id=${encodeURIComponent(participantId)}`, {
+          method: 'DELETE',
+        })
       })
     } catch (error) {
       console.error('Error deleting card:', error)
@@ -329,7 +332,7 @@ export function BoardColumn({
         const res = await fetch('/api/cards', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: card.id, text: newText }),
+          body: JSON.stringify({ id: card.id, text: newText, author_id: participantId }),
         })
 
         if (res.ok) {
@@ -373,6 +376,34 @@ export function BoardColumn({
     } catch (error) {
       console.error('Error moving card:', error)
       broadcast({ type: 'card_deleted', payload: { id: movedCard.id } })
+      broadcast({ type: 'card_added', payload: card })
+    }
+  }
+
+  /**
+   * Move o card para a coluna de Ações. Ações são de outra tabela — têm
+   * responsável e voltam na sprint seguinte —, então o card sai e a ação entra.
+   */
+  const handlePromote = async (card: CardType) => {
+    broadcast({ type: 'card_deleted', payload: { id: card.id } })
+
+    try {
+      await trackOperation(async () => {
+        const res = await fetch('/api/cards/promote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ card_id: card.id }),
+        })
+
+        if (res.ok) {
+          const { action } = await res.json()
+          broadcast({ type: 'action_added', payload: action })
+        } else {
+          broadcast({ type: 'card_added', payload: card })
+        }
+      })
+    } catch (error) {
+      console.error('Error promoting card:', error)
       broadcast({ type: 'card_added', payload: card })
     }
   }
@@ -450,6 +481,7 @@ export function BoardColumn({
       onDelete={() => handleDelete(card.id)}
       onEdit={(text) => handleEdit(card, text)}
       onMove={(target) => handleMove(card, target)}
+      onPromote={() => handlePromote(card)}
       onUngroup={() => handleUngroupCard(card)}
     />
   )
@@ -724,6 +756,7 @@ type RetroCardProps = {
   onDelete: () => void
   onEdit: (newText: string) => void
   onMove: (targetColumn: ColumnType) => void
+  onPromote: () => void
   onUngroup: () => void
 }
 
@@ -740,6 +773,7 @@ function RetroCard({
   onDelete,
   onEdit,
   onMove,
+  onPromote,
   onUngroup,
 }: RetroCardProps) {
   const [isEditing, setIsEditing] = useState(false)
@@ -859,10 +893,14 @@ function RetroCard({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                      <Pencil className="w-3.5 h-3.5 mr-2" />
-                      Editar
-                    </DropdownMenuItem>
+                    {/* Reescrever o texto de alguém é falsear o que a pessoa
+                        disse na retro; mover e agrupar seguem abertos. */}
+                    {isOwner && (
+                      <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                        <Pencil className="w-3.5 h-3.5 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
+                    )}
 
                     {otherColumns.map(col => (
                       <DropdownMenuItem key={col} onClick={() => onMove(col)}>
@@ -870,6 +908,13 @@ function RetroCard({
                         Mover para {columnLabels[col]}
                       </DropdownMenuItem>
                     ))}
+
+                    {/* Ações são de outra tabela, então isto move de verdade —
+                        é o que evita duplicar na mão o card que virou ação. */}
+                    <DropdownMenuItem onClick={onPromote}>
+                      <ListChecks className="w-3.5 h-3.5 mr-2" />
+                      Transformar em ação
+                    </DropdownMenuItem>
 
                     {inGroup && (
                       <DropdownMenuItem onClick={onUngroup}>

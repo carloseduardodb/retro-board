@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { denyUnlessOwner } from '@/lib/ownership'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -86,6 +87,11 @@ export async function DELETE(request: Request) {
     )
   }
 
+  const denial = await denyUnlessOwner(supabase, 'cards', id, searchParams.get('author_id'))
+  if (denial) {
+    return NextResponse.json({ error: denial.error, message: denial.message }, { status: denial.status })
+  }
+
   const { error } = await supabase
     .from('cards')
     .delete()
@@ -107,7 +113,7 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await request.json()
-    const { id, text, column_type } = body
+    const { id, text, column_type, author_id } = body
 
     if (!id) {
       return NextResponse.json(
@@ -123,6 +129,16 @@ export async function PATCH(request: Request) {
         return NextResponse.json(
           { error: 'invalid_payload', message: 'Texto inválido (vazio ou acima de 500 caracteres)' },
           { status: 400 }
+        )
+      }
+
+      // Só reescrever o texto é exclusivo do dono: mover de coluna, logo abaixo,
+      // é organização do board e segue aberta a todos.
+      const denial = await denyUnlessOwner(supabase, 'cards', id, author_id)
+      if (denial) {
+        return NextResponse.json(
+          { error: denial.error, message: denial.message },
+          { status: denial.status },
         )
       }
       updateData.text = text.trim()
