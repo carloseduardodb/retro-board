@@ -1,9 +1,9 @@
 'use client'
 
-import { useMemo, useRef } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { PlayerRef } from '@remotion/player'
-import { ArrowLeft, Play, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Download, Loader2, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { RecapPlayer, useRecapSeconds } from '@/components/landing/recap-player'
@@ -33,10 +33,80 @@ export function RecapClient({ session, cards, actionCards }: RecapClientProps) {
   const seconds = useRecapSeconds(data)
   const enough = hasEnoughForRecap(cards, actionCards)
 
+  const [muted, setMuted] = useState(true)
+
   const restart = () => {
     playerRef.current?.seekTo(0)
     playerRef.current?.play()
   }
+
+  const [downloading, setDownloading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+
+  /**
+   * O vídeo da página é DOM sendo animado — não existe arquivo. Baixar significa
+   * pedir ao servidor que renderize a composição quadro a quadro, o que leva
+   * minutos.
+   *
+   * Daí as duas etapas: o POST enfileira e volta na hora, e o GET pergunta o
+   * andamento até o arquivo existir. Esperar tudo numa requisição só faria o
+   * proxy derrubar a conexão bem antes do vídeo ficar pronto.
+   */
+  const download = useCallback(async () => {
+    setDownloading(true)
+    setDownloadError(null)
+    setProgress(0)
+
+    const fail = async (response: Response) => {
+      const body = await response.json().catch(() => null)
+      return new Error(body?.error ?? 'Não foi possível gerar o vídeo')
+    }
+
+    try {
+      const start = await fetch(`/api/recap/${session.token}/video`, { method: 'POST' })
+      if (!start.ok && start.status !== 202) throw await fail(start)
+      const { id } = (await start.json()) as { id: string }
+
+      for (;;) {
+        const response = await fetch(`/api/recap/${session.token}/video?id=${id}`)
+
+        if (response.status === 202) {
+          const { progress: value } = (await response.json()) as { progress: number }
+          setProgress(value)
+          await new Promise((resolve) => setTimeout(resolve, 2000))
+          continue
+        }
+        if (!response.ok) throw await fail(response)
+
+        const url = URL.createObjectURL(await response.blob())
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `retro-${session.token.toLowerCase()}.mp4`
+        link.click()
+        URL.revokeObjectURL(url)
+        break
+      }
+    } catch (cause) {
+      setDownloadError(cause instanceof Error ? cause.message : 'Falha no download')
+    } finally {
+      setDownloading(false)
+    }
+  }, [session.token])
+
+  // O player começa mudo (autoplay com som é bloqueado); daqui em diante é
+  // escolha de quem assiste.
+  const toggleSound = useCallback(() => {
+    const player = playerRef.current
+    if (!player) return
+    if (player.isMuted()) {
+      player.unmute()
+      setMuted(false)
+    } else {
+      player.mute()
+      setMuted(true)
+    }
+  }, [])
 
   return (
     <main className="min-h-screen bg-background">
@@ -78,7 +148,7 @@ export function RecapClient({ session, cards, actionCards }: RecapClientProps) {
           <>
             <div className="mt-8 overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
               <div className="aspect-video w-full">
-                {isReady && <RecapPlayer ref={playerRef} data={data} controls autoPlay />}
+                {isReady && <RecapPlayer ref={playerRef} data={data} controls autoPlay music />}
               </div>
             </div>
 
@@ -91,11 +161,47 @@ export function RecapClient({ session, cards, actionCards }: RecapClientProps) {
                 <Play className="mr-2 h-4 w-4" />
                 Continuar
               </Button>
+              <Button onClick={toggleSound} variant="ghost" size="sm">
+                {muted ? (
+                  <VolumeX className="mr-2 h-4 w-4" />
+                ) : (
+                  <Volume2 className="mr-2 h-4 w-4" />
+                )}
+                {muted ? 'Ativar som' : 'Silenciar'}
+              </Button>
+              <Button onClick={download} disabled={downloading} variant="secondary" size="sm">
+                {downloading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                {downloading
+                  ? `Gerando o MP4… ${Math.round(progress * 100)}%`
+                  : 'Baixar em MP4'}
+              </Button>
               <p className="text-xs text-muted-foreground">
                 Os seus cards aparecem desde o começo; os dos outros só depois da revelação, igual
                 à retro ao vivo.
               </p>
             </div>
+
+            {downloading && (
+              <div className="mt-3 max-w-md">
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-primary transition-[width] duration-500"
+                    style={{ width: `${Math.max(2, progress * 100)}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  O servidor está desenhando os {seconds * 30} quadros em 1080p e juntando com a
+                  trilha. Leva alguns minutos — pode deixar a aba aberta.
+                </p>
+              </div>
+            )}
+            {downloadError && (
+              <p className="mt-3 text-xs text-destructive">{downloadError}</p>
+            )}
           </>
         )}
       </section>
