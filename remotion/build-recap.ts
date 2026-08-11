@@ -67,7 +67,9 @@ function uniqueAuthors(cards: Card[], actionCards: ActionCard[]): string[] {
     const name = item.author?.trim()
     if (name) names.add(name)
   }
-  return [...names].slice(0, 6)
+  // Sem corte: quem entrou conta para o número exibido. O cabeçalho é que
+  // decide quantos avatares desenha (ver `BoardHeader`).
+  return [...names]
 }
 
 export const hasEnoughForRecap = (cards: Card[], actionCards: ActionCard[]) =>

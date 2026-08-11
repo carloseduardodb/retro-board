@@ -10,6 +10,7 @@
 import React, { useMemo } from 'react'
 import { AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion'
 
+import { buildCamera, cameraAt } from './camera'
 import { Stage } from './Stage'
 import { buildTimeline, type Timeline } from './timeline'
 import { columns, font, palette, HEIGHT, WIDTH } from './theme'
@@ -34,8 +35,10 @@ export function RetroRecap({ data, showCaptions = true }: RetroRecapProps) {
   const intro = timeline.scene('intro')
   const outro = timeline.scene('outro')
 
-  // Câmera: um empurrão discreto ao longo do vídeo, com um respiro na revelação.
-  const push = interpolate(frame, [0, timeline.durationInFrames], [1, 1.035], ease)
+  // Câmera: o roteiro de enquadramentos (`remotion/camera.ts`) mais um respiro
+  // na revelação — o quadro recua um instante quando tudo aparece de uma vez.
+  const shots = useMemo(() => buildCamera(timeline), [timeline])
+  const camera = cameraAt(shots, frame)
   const revealBreath = interpolate(
     frame,
     [timeline.marks.revealAt - 8, timeline.marks.revealAt + 6, timeline.marks.revealAt + 40],
@@ -49,11 +52,22 @@ export function RetroRecap({ data, showCaptions = true }: RetroRecapProps) {
     <AbsoluteFill
       style={{ backgroundColor: palette.background, fontFamily: font, color: palette.foreground }}
     >
-      <AbsoluteFill style={{ transform: `scale(${push * revealBreath})` }}>
-        <Stage data={data} timeline={timeline} />
+      {/* Duas camadas de propósito: o respiro escala em torno do centro do
+          quadro, a câmera escala em torno da origem do board. Misturar as duas
+          numa transform só faria o enquadramento derivar do alvo. */}
+      <AbsoluteFill style={{ transform: `scale(${revealBreath})` }}>
+        <AbsoluteFill
+          style={{
+            transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.scale})`,
+            transformOrigin: '0 0',
+          }}
+        >
+          <Stage data={data} timeline={timeline} />
+        </AbsoluteFill>
       </AbsoluteFill>
 
       <RevealFlash at={timeline.marks.revealAt} />
+      <HighlightsOverlay timeline={timeline} />
       {showCaptions && <Captions timeline={timeline} />}
       <IntroOverlay
         data={data}
@@ -61,7 +75,7 @@ export function RetroRecap({ data, showCaptions = true }: RetroRecapProps) {
         duration={intro.duration}
         totalSeconds={Math.round(timeline.durationInFrames / 30)}
       />
-      <OutroOverlay data={data} from={outro.from} duration={outro.duration} />
+      <OutroOverlay data={data} timeline={timeline} from={outro.from} duration={outro.duration} />
     </AbsoluteFill>
   )
 }
@@ -75,11 +89,17 @@ function Captions({ timeline }: { timeline: Timeline }) {
   const scene = timeline.scenes.find(
     (s) => s.duration > 0 && frame >= s.from && frame < s.from + s.duration,
   )
-  if (!scene || scene.id === 'intro' || scene.id === 'outro') return null
+  // Intro, destaques e outro já falam por si em tela cheia.
+  if (!scene || scene.id === 'intro' || scene.id === 'outro' || scene.id === 'highlights') {
+    return null
+  }
 
   const local = frame - scene.from
   const entry = spring({ frame: local - 6, fps, config: { damping: 16, mass: 0.7 } })
-  const exit = interpolate(local, [scene.duration - 18, scene.duration], [1, 0], ease)
+  // Na varredura a legenda sai cedo: ela ocupa o canto de uma coluna, e é
+  // justamente o pé das colunas que a cena existe para mostrar.
+  const leaveAt = scene.id === 'tour' ? Math.round(scene.duration * 0.3) : scene.duration - 18
+  const exit = interpolate(local, [leaveAt, leaveAt + 18], [1, 0], ease)
   const opacity = entry * exit
 
   return (
@@ -120,6 +140,129 @@ function RevealFlash({ at }: { at: number }) {
         pointerEvents: 'none',
       }}
     />
+  )
+}
+
+
+/* ----------------------------------------------------------- destaques */
+
+/**
+ * Os cards mais votados em tela cheia.
+ *
+ * Numa retro grande o board fica denso e o texto do card, pequeno: esta cena é o
+ * contrapeso — o que o time mais votou volta em tamanho de leitura, um por vez.
+ */
+function HighlightsOverlay({ timeline }: { timeline: Timeline }) {
+  const frame = useCurrentFrame()
+  const { fps } = useVideoConfig()
+  const scene = timeline.scene('highlights')
+  const local = frame - scene.from
+  if (scene.duration === 0 || local < 0 || local >= scene.duration) return null
+
+  const cover = interpolate(
+    local,
+    [0, 18, scene.duration - 18, scene.duration],
+    [0, 1, 1, 0],
+    ease,
+  )
+  const slot = Math.floor((scene.duration - 40) / timeline.highlights.length)
+  const index = Math.min(timeline.highlights.length - 1, Math.floor(Math.max(0, local - 20) / slot))
+  const track = timeline.highlights[index]
+  const inSlot = Math.max(0, local - 20) - index * slot
+
+  const enter = spring({ frame: inSlot, fps, config: { damping: 17, mass: 0.8 } })
+  const leave = interpolate(inSlot, [slot - 14, slot], [1, 0], ease)
+  const meta = columns[track.card.column]
+  const reactions = Object.entries(track.card.reactions).sort((a, b) => b[1] - a[1])
+
+  return (
+    <AbsoluteFill
+      style={{
+        backgroundColor: `rgba(245,247,251,${0.96 * cover})`,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '0 140px',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 1360,
+          opacity: enter * leave,
+          transform: `translateY(${(1 - enter) * 34}px)`,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+          <span style={{ width: 18, height: 18, borderRadius: 6, backgroundColor: meta.accent }} />
+          <span style={{ fontSize: 28, fontWeight: 700, color: meta.ink, letterSpacing: 1 }}>
+            {meta.title.toUpperCase()}
+          </span>
+          <span style={{ marginLeft: 'auto', fontSize: 26, color: palette.muted }}>
+            {index + 1} de {timeline.highlights.length}
+          </span>
+        </div>
+
+        <div
+          style={{
+            marginTop: 34,
+            padding: '48px 56px',
+            borderRadius: 28,
+            backgroundColor: palette.surface,
+            border: `1px solid ${palette.border}`,
+            borderLeft: `10px solid ${meta.accent}`,
+            boxShadow: '0 30px 80px rgba(16,24,40,0.10)',
+          }}
+        >
+          <div style={{ fontSize: 58, lineHeight: '72px', fontWeight: 600, letterSpacing: -1.2 }}>
+            {track.card.text}
+          </div>
+
+          <div style={{ marginTop: 38, display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '14px 26px',
+                borderRadius: 999,
+                backgroundColor: '#eef4ff',
+                border: '1px solid #c7dbff',
+                transform: `scale(${0.85 + enter * 0.15})`,
+              }}
+            >
+              <span style={{ fontSize: 30 }}>👍</span>
+              <span style={{ fontSize: 34, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+                {track.card.votes}
+              </span>
+            </div>
+            {reactions.map(([emoji, count], i) => (
+              <div
+                key={emoji}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '14px 22px',
+                  borderRadius: 999,
+                  backgroundColor: palette.background,
+                  border: `1px solid ${palette.border}`,
+                  fontSize: 28,
+                  transform: `scale(${spring({ frame: inSlot - 10 - i * 5, fps, config: { damping: 11, mass: 0.4 } })})`,
+                }}
+              >
+                <span>{emoji}</span>
+                <span style={{ color: palette.muted, fontWeight: 700 }}>{count}</span>
+              </div>
+            ))}
+            {track.card.groupLabel && (
+              <span style={{ marginLeft: 'auto', fontSize: 26, color: palette.muted }}>
+                tema · {track.card.groupLabel}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </AbsoluteFill>
   )
 }
 
@@ -184,7 +327,17 @@ function IntroOverlay({
   )
 }
 
-function OutroOverlay({ data, from, duration }: { data: RecapData; from: number; duration: number }) {
+function OutroOverlay({
+  data,
+  timeline,
+  from,
+  duration,
+}: {
+  data: RecapData
+  timeline: Timeline
+  from: number
+  duration: number
+}) {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
   const local = frame - from
@@ -192,6 +345,17 @@ function OutroOverlay({ data, from, duration }: { data: RecapData; from: number;
 
   const cover = interpolate(local, [0, 26], [0, 1], ease)
   const rise = spring({ frame: local - 14, fps, config: { damping: 16, mass: 0.8 } })
+  const { stats } = timeline
+
+  // O placar só lista o que a retro de fato teve: uma coluna zerada não vira
+  // métrica de vaidade no fim do vídeo.
+  const tally = [
+    { label: stats.cards === 1 ? 'card' : 'cards', value: stats.cards },
+    { label: stats.votes === 1 ? 'voto' : 'votos', value: stats.votes },
+    { label: stats.reactions === 1 ? 'reação' : 'reações', value: stats.reactions },
+    { label: stats.groups === 1 ? 'tema' : 'temas', value: stats.groups },
+    { label: stats.actions === 1 ? 'ação' : 'ações', value: stats.actions },
+  ].filter((item) => item.value > 0)
 
   return (
     <AbsoluteFill
@@ -232,7 +396,30 @@ function OutroOverlay({ data, from, duration }: { data: RecapData; from: number;
           ? `${data.actions.length} ${data.actions.length === 1 ? 'ação' : 'ações'}. Zero atas.`
           : 'Esta retro ainda não virou ação.'}
       </div>
-      <div style={{ fontSize: 30, opacity: 0.72 * rise }}>
+
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 56, marginTop: 10 }}>
+        {tally.map((item, index) => {
+          const pop = spring({ frame: local - 26 - index * 6, fps, config: { damping: 15, mass: 0.6 } })
+          const value = Math.round(interpolate(pop, [0, 1], [0, item.value]))
+          return (
+            <div key={item.label} style={{ textAlign: 'center', opacity: pop }}>
+              <div
+                style={{
+                  fontSize: 62,
+                  fontWeight: 800,
+                  letterSpacing: -2,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {value}
+              </div>
+              <div style={{ fontSize: 24, opacity: 0.6, marginTop: 2 }}>{item.label}</div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div style={{ fontSize: 30, opacity: 0.72 * rise, marginTop: 8 }}>
         Retro Board · sessão {data.token} · abra o link e comece agora
       </div>
     </AbsoluteFill>
