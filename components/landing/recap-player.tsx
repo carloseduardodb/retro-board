@@ -49,9 +49,6 @@ export const RecapPlayer = forwardRef<PlayerRef, RecapPlayerProps>(function Reca
       autoPlay={autoPlay}
       loop={loop}
       controls={controls}
-      // Autoplay com som é bloqueado por todo navegador — o vídeo começa mudo e
-      // quem quiser trilha liga no controle de volume.
-      initiallyMuted={music && autoPlay}
       showVolumeControls={music}
       clickToPlay={controls}
       doubleClickToFullscreen={controls}

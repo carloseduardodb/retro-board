@@ -17,7 +17,7 @@ import type { RecapCard, RecapData } from './types'
  * e mesmo assim o vídeo declara em tela quantos ficaram de fora.
  */
 export const MAX_CARDS_PER_COLUMN = 24
-export const MAX_ACTIONS = 12
+export const MAX_ACTIONS = 24
 export const MAX_CARD_CHARS = 180
 
 /** Abaixo disso o texto do card deixa de ser legível em tela; daí em diante, panorâmica. */
@@ -125,6 +125,9 @@ export type GroupBlock = {
   label: string | null
   column: RecapCard['column']
   votes: number
+  /** Total de reações do bloco. Fica separado dos votos para o selo não somar
+   *  os dois sob um ícone de joinha. */
+  reactions: number
   count: number
   metrics: CardMetrics
   placement: Placement
@@ -222,6 +225,16 @@ export type Timeline = {
 
 type LayoutMode = { rank: boolean; group: boolean }
 
+/**
+ * Peso do card: votos mais reações. Reagir com 🚀 também é dizer que importa,
+ * então ordenar só por joinha jogava para baixo o card que o time inteiro
+ * reagiu e ninguém votou.
+ */
+export function weightOf(card: RecapCard): number {
+  if (typeof card.weight === 'number') return card.weight
+  return card.votes + Object.values(card.reactions).reduce((sum, n) => sum + n, 0)
+}
+
 function sortChronological(a: RecapCard, b: RecapCard) {
   return b.createdAt.localeCompare(a.createdAt)
 }
@@ -250,13 +263,15 @@ function computeLayout(
 
     // Itens da coluna: cards soltos e (quando agrupando) blocos de grupo.
     type Item =
-      | { kind: 'card'; card: RecapCard; votes: number; createdAt: string; height: number }
+      | { kind: 'card'; card: RecapCard; weight: number; createdAt: string; height: number }
       | {
           kind: 'group'
           id: string
           label: string | null
           cards: RecapCard[]
           votes: number
+          reactions: number
+          weight: number
           createdAt: string
           height: number
         }
@@ -270,13 +285,18 @@ function computeLayout(
         seenGroups.add(card.groupId)
         const members = columnCards
           .filter((c) => c.groupId === card.groupId)
-          .sort((a, b) => b.votes - a.votes || sortChronological(a, b))
+          .sort((a, b) => weightOf(b) - weightOf(a) || sortChronological(a, b))
         items.push({
           kind: 'group',
           id: card.groupId,
           label: card.groupLabel,
           cards: members,
           votes: members.reduce((sum, c) => sum + c.votes, 0),
+          reactions: members.reduce(
+            (sum, c) => sum + Object.values(c.reactions).reduce((n, v) => n + v, 0),
+            0,
+          ),
+          weight: members.reduce((sum, c) => sum + weightOf(c), 0),
           createdAt: members.reduce((max, c) => (c.createdAt > max ? c.createdAt : max), ''),
           height: m.groupHeaderHeight + members.reduce((sum, c) => sum + cardHeight(c, m), 0),
         })
@@ -285,7 +305,7 @@ function computeLayout(
       items.push({
         kind: 'card',
         card,
-        votes: card.votes,
+        weight: weightOf(card),
         createdAt: card.createdAt,
         height: cardHeight(card, m),
       })
@@ -293,7 +313,7 @@ function computeLayout(
 
     items.sort((a, b) =>
       mode.rank
-        ? b.votes - a.votes || b.createdAt.localeCompare(a.createdAt)
+        ? b.weight - a.weight || b.createdAt.localeCompare(a.createdAt)
         : b.createdAt.localeCompare(a.createdAt),
     )
 
@@ -306,6 +326,7 @@ function computeLayout(
           label: item.label,
           column,
           votes: item.votes,
+          reactions: item.reactions,
           count: item.cards.length,
           metrics: m,
           placement: { x, y, width: cardWidth, height: item.height },
@@ -342,7 +363,7 @@ export function trimData(data: RecapData): TrimResult {
   for (const column of CARD_COLUMNS) {
     const all = data.cards
       .filter((c) => c.column === column)
-      .sort((a, b) => b.votes - a.votes || sortChronological(a, b))
+      .sort((a, b) => weightOf(b) - weightOf(a) || sortChronological(a, b))
     omitted[column] = Math.max(0, all.length - MAX_CARDS_PER_COLUMN)
     cards.push(...all.slice(0, MAX_CARDS_PER_COLUMN))
   }
@@ -388,6 +409,12 @@ export function buildTimeline(raw: RecapData): Timeline {
   const hasVotes = cards.some((c) => c.votes > 0)
   const hasReactions = cards.some((c) => Object.keys(c.reactions).length > 0)
   const hasEngagement = hasVotes || hasReactions
+  /**
+   * Alguma coisa pesou — por voto ou por reação. É o que libera o destaque:
+   * antes, um card que o time inteiro reagiu e ninguém votou não ganhava cena
+   * nenhuma, como se não tivesse repercutido.
+   */
+  const hasWeight = cards.some((c) => weightOf(c) > 0)
   const hasActions = data.actions.length > 0
 
   // Cada coluna encolhe o quanto precisar para caber; o que sobrar vira panorâmica.
@@ -423,10 +450,10 @@ export function buildTimeline(raw: RecapData): Timeline {
   const voteDuration = 60 + cards.length * voteStep + 50
   const tourDuration = needsTour ? Math.round(110 + Math.min(cardScroll, 1400) * 0.16) : 0
 
-  const highlights = hasVotes
+  const highlights = hasWeight
     ? cards
-        .filter((c) => c.votes > 0)
-        .sort((a, b) => b.votes - a.votes || sortChronological(a, b))
+        .filter((c) => weightOf(c) > 0)
+        .sort((a, b) => weightOf(b) - weightOf(a) || sortChronological(a, b))
         .slice(0, 3)
     : []
   const highlightsDuration = highlights.length > 1 ? 40 + highlights.length * 78 : 0
@@ -475,7 +502,7 @@ export function buildTimeline(raw: RecapData): Timeline {
   // os traços do modo desenho são efêmeros e nunca chegam ao banco.
   push({
     id: 'draw',
-    duration: hasVotes ? 130 : 0,
+    duration: hasWeight ? 130 : 0,
     title: 'O card que mais pesou',
     subtitle: hasActions
       ? 'O recap circula o mais votado e aponta para o que virou ação'
@@ -484,12 +511,19 @@ export function buildTimeline(raw: RecapData): Timeline {
   push({
     id: 'highlights',
     duration: highlightsDuration,
-    title: 'O que o time mais votou',
+    title: hasVotes ? 'O que o time mais votou' : 'O que mais repercutiu',
     subtitle: 'Card a card, em tamanho de leitura',
   })
+  // Quanto a coluna de ações precisa deslizar define quanto a cena dura. Com
+  // janela fixa, cada ação a mais deixava a passagem mais rápida, até o texto
+  // não dar tempo de ser lido.
+  const actionsEnterFor = 60 + data.actions.length * 16
+  const actionsPanFor = fit.actions.scroll > 0
+    ? Math.round(60 + Math.min(fit.actions.scroll, 1400) * 0.18)
+    : 0
   const actionsScene = push({
     id: 'actions',
-    duration: hasActions ? 90 + data.actions.length * 16 + 70 : 0,
+    duration: hasActions ? 30 + actionsEnterFor + actionsPanFor + 70 : 0,
     title: 'A retro termina em ações',
     subtitle: 'Elas voltam marcadas na próxima sprint',
   })
@@ -502,7 +536,7 @@ export function buildTimeline(raw: RecapData): Timeline {
 
   const appearBase = write.from + 30
   const byCreation = [...cards].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-  const byVotes = [...cards].sort((a, b) => b.votes - a.votes || sortChronological(a, b))
+  const byVotes = [...cards].sort((a, b) => weightOf(b) - weightOf(a) || sortChronological(a, b))
   // O atraso da reordenação é por coluna: as três se reorganizam em paralelo. Um
   // atraso global faria o último card de um board grande partir depois de a
   // animação dos primeiros já ter acabado.
@@ -572,8 +606,10 @@ export function buildTimeline(raw: RecapData): Timeline {
       groupTo,
       tourFrom: needsTour ? tour.from + 12 : cursor + 60,
       tourTo: needsTour ? tour.from + tour.duration - 6 : cursor + 61,
-      actionsPanFrom: hasActions ? actionsScene.from + 70 + data.actions.length * 16 : cursor + 60,
-      actionsPanTo: hasActions ? actionsScene.from + actionsScene.duration - 10 : cursor + 61,
+      // A panorâmica começa depois de todas terem entrado e termina antes do
+      // fim da cena, para as últimas ficarem paradas em tela antes do corte.
+      actionsPanFrom: hasActions ? actionsScene.from + 10 + actionsEnterFor : cursor + 60,
+      actionsPanTo: hasActions ? actionsScene.from + 10 + actionsEnterFor + actionsPanFor : cursor + 61,
       // Sem ações não há holofote: um frame além do fim nunca é alcançado.
       spotlightFrom: hasActions ? actionsScene.from + 20 : cursor + 60,
     },

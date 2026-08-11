@@ -52,6 +52,12 @@ type StrokeMessage = {
   done: boolean
 }
 
+/** Limpeza é sempre do próprio desenho: `authorId` diz de quem apagar. */
+type ClearMessage = { clear: string }
+
+const isClear = (payload: unknown): payload is ClearMessage =>
+  typeof payload === 'object' && payload !== null && 'clear' in payload
+
 const FLUSH_INTERVAL_MS = 60
 
 export function useDrawing(sessionToken: string, participantId: string) {
@@ -67,7 +73,7 @@ export function useDrawing(sessionToken: string, participantId: string) {
   const pendingRef = useRef<DrawPoint[]>([])
   const colorRef = useRef<string>(colorForParticipant(participantId))
 
-  const send = useCallback((payload: StrokeMessage | { clear: true }) => {
+  const send = useCallback((payload: StrokeMessage | ClearMessage) => {
     channelRef.current?.send({ type: 'broadcast', event: 'draw', payload })
   }, [])
 
@@ -89,6 +95,17 @@ export function useDrawing(sessionToken: string, participantId: string) {
     })
   }, [])
 
+  /**
+   * Apaga só o desenho de um autor. Uma borracha que leva o traço dos outros
+   * junto é convite para sacanagem: alguém começa a desenhar e some tudo.
+   */
+  const forgetAuthor = useCallback((authorId: string) => {
+    for (const [id, stroke] of strokesRef.current) {
+      if (stroke.authorId === authorId) strokesRef.current.delete(id)
+    }
+    activityRef.current.delete(authorId)
+  }, [])
+
   useEffect(() => {
     if (!sessionToken || !participantId) return
 
@@ -97,9 +114,8 @@ export function useDrawing(sessionToken: string, participantId: string) {
     })
 
     channel.on('broadcast', { event: 'draw' }, ({ payload }) => {
-      if (payload && 'clear' in payload) {
-        strokesRef.current.clear()
-        activityRef.current.clear()
+      if (isClear(payload)) {
+        forgetAuthor(payload.clear)
         return
       }
       applyRemote(payload as StrokeMessage)
@@ -112,7 +128,7 @@ export function useDrawing(sessionToken: string, participantId: string) {
       channel.unsubscribe()
       channelRef.current = null
     }
-  }, [sessionToken, participantId, applyRemote])
+  }, [sessionToken, participantId, applyRemote, forgetAuthor])
 
   // Envia os pontos acumulados em lotes, para não gerar uma mensagem por pixel.
   useEffect(() => {
@@ -174,12 +190,11 @@ export function useDrawing(sessionToken: string, participantId: string) {
   }, [participantId, send])
 
   const clear = useCallback(() => {
-    strokesRef.current.clear()
-    activityRef.current.clear()
+    forgetAuthor(participantId)
     activeIdRef.current = null
     pendingRef.current = []
-    send({ clear: true })
-  }, [send])
+    send({ clear: participantId })
+  }, [forgetAuthor, participantId, send])
 
   return { strokesRef, activityRef, startStroke, addPoint, endStroke, clear, setColor, getColor }
 }

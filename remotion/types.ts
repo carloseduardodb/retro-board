@@ -11,8 +11,17 @@ export type RecapCard = {
   column: 'good' | 'bad' | 'ideas'
   text: string
   votes: number
-  /** Emoji -> quantidade de reações. */
+  /** Emoji -> quantidade de reações. Só os mais reagidos entram, por caber em tela. */
   reactions: Record<string, number>
+  /**
+   * Votos mais reações — é o que ordena o board e escolhe os destaques, porque
+   * reagir também é dizer "isto importa".
+   *
+   * Opcional: quando vem do board real, é calculado sobre as reações inteiras,
+   * inclusive as que não couberam nos chips. Sem ele, a timeline deriva o peso
+   * dos chips visíveis (é o caso dos dados fictícios da landing).
+   */
+  weight?: number
   groupId: string | null
   groupLabel: string | null
   /** ISO. Usado só para desempate na ordenação, igual ao board. */

@@ -269,23 +269,27 @@ function HighlightsOverlay({ timeline }: { timeline: Timeline }) {
           </div>
 
           <div style={{ marginTop: 38, display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '14px 26px',
-                borderRadius: 999,
-                backgroundColor: '#eef4ff',
-                border: '1px solid #c7dbff',
-                transform: `scale(${0.85 + enter * 0.15})`,
-              }}
-            >
-              <span style={{ fontSize: 30 }}>👍</span>
-              <span style={{ fontSize: 34, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
-                {track.card.votes}
-              </span>
-            </div>
+            {/* Um card pode estar aqui só por reação; mostrar "👍 0" faria
+                parecer que ele subiu sem motivo. */}
+            {track.card.votes > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '14px 26px',
+                  borderRadius: 999,
+                  backgroundColor: '#eef4ff',
+                  border: '1px solid #c7dbff',
+                  transform: `scale(${0.85 + enter * 0.15})`,
+                }}
+              >
+                <span style={{ fontSize: 30 }}>👍</span>
+                <span style={{ fontSize: 34, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+                  {track.card.votes}
+                </span>
+              </div>
+            )}
             {reactions.map(([emoji, count], i) => (
               <div
                 key={emoji}

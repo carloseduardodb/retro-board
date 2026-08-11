@@ -37,8 +37,11 @@ import {
   ChevronDown,
   ChevronRight,
   EyeOff,
+  ListChecks,
+  SmilePlus,
 } from 'lucide-react'
 import type { Card as CardType, RealtimeEvent } from '@/lib/types/database'
+import { cardWeight, reactionCount } from '@/lib/card-weight'
 import { cn } from '@/lib/utils'
 import { useDroppable, useDraggable } from '@dnd-kit/core'
 import { CardReactions } from '@/components/board/card-reactions'
@@ -83,9 +86,15 @@ const columnLabels: Record<ColumnType, string> = {
   ideas: 'Ideias',
 }
 
-/** Um item da lista da coluna: um card solto ou um grupo de cards relacionados. */
+/**
+ * Um item da lista da coluna: um card solto ou um grupo de cards relacionados.
+ *
+ * `weight` é o que ordena — votos mais reações (ver `lib/card-weight.ts`). Os
+ * dois números seguem separados para o grupo poder exibir cada um com o seu
+ * ícone, em vez de um total que ninguém confere olhando.
+ */
 type ColumnEntry =
-  | { kind: 'card'; key: string; card: CardType; votes: number; createdAt: number }
+  | { kind: 'card'; key: string; card: CardType; weight: number; createdAt: number }
   | {
       kind: 'group'
       key: string
@@ -93,6 +102,8 @@ type ColumnEntry =
       label: string | null
       cards: CardType[]
       votes: number
+      reactions: number
+      weight: number
       createdAt: number
     }
 
@@ -113,7 +124,7 @@ function buildEntries(cards: CardType[]): ColumnEntry[] {
         kind: 'card',
         key: card.id,
         card,
-        votes: card.votes,
+        weight: cardWeight(card),
         createdAt: new Date(card.created_at).getTime(),
       })
     }
@@ -127,14 +138,15 @@ function buildEntries(cards: CardType[]): ColumnEntry[] {
         kind: 'card',
         key: card.id,
         card,
-        votes: card.votes,
+        weight: cardWeight(card),
         createdAt: new Date(card.created_at).getTime(),
       })
       continue
     }
 
     const sorted = [...groupCards].sort((a, b) => {
-      if (b.votes !== a.votes) return b.votes - a.votes
+      const peso = cardWeight(b) - cardWeight(a)
+      if (peso !== 0) return peso
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
 
@@ -145,12 +157,14 @@ function buildEntries(cards: CardType[]): ColumnEntry[] {
       label: sorted.find((c) => c.group_label)?.group_label ?? null,
       cards: sorted,
       votes: sorted.reduce((sum, c) => sum + c.votes, 0),
+      reactions: sorted.reduce((sum, c) => sum + reactionCount(c.reactions), 0),
+      weight: sorted.reduce((sum, c) => sum + cardWeight(c), 0),
       createdAt: Math.max(...sorted.map((c) => new Date(c.created_at).getTime())),
     })
   }
 
   return entries.sort((a, b) => {
-    if (b.votes !== a.votes) return b.votes - a.votes
+    if (b.weight !== a.weight) return b.weight - a.weight
     return b.createdAt - a.createdAt
   })
 }
@@ -313,7 +327,9 @@ export function BoardColumn({
 
     try {
       await trackOperation(async () => {
-        await fetch(`/api/cards?id=${cardId}`, { method: 'DELETE' })
+        await fetch(`/api/cards?id=${cardId}&author_id=${encodeURIComponent(participantId)}`, {
+          method: 'DELETE',
+        })
       })
     } catch (error) {
       console.error('Error deleting card:', error)
@@ -329,7 +345,7 @@ export function BoardColumn({
         const res = await fetch('/api/cards', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: card.id, text: newText }),
+          body: JSON.stringify({ id: card.id, text: newText, author_id: participantId }),
         })
 
         if (res.ok) {
@@ -373,6 +389,34 @@ export function BoardColumn({
     } catch (error) {
       console.error('Error moving card:', error)
       broadcast({ type: 'card_deleted', payload: { id: movedCard.id } })
+      broadcast({ type: 'card_added', payload: card })
+    }
+  }
+
+  /**
+   * Move o card para a coluna de Ações. Ações são de outra tabela — têm
+   * responsável e voltam na sprint seguinte —, então o card sai e a ação entra.
+   */
+  const handlePromote = async (card: CardType) => {
+    broadcast({ type: 'card_deleted', payload: { id: card.id } })
+
+    try {
+      await trackOperation(async () => {
+        const res = await fetch('/api/cards/promote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ card_id: card.id }),
+        })
+
+        if (res.ok) {
+          const { action } = await res.json()
+          broadcast({ type: 'action_added', payload: action })
+        } else {
+          broadcast({ type: 'card_added', payload: card })
+        }
+      })
+    } catch (error) {
+      console.error('Error promoting card:', error)
       broadcast({ type: 'card_added', payload: card })
     }
   }
@@ -450,6 +494,7 @@ export function BoardColumn({
       onDelete={() => handleDelete(card.id)}
       onEdit={(text) => handleEdit(card, text)}
       onMove={(target) => handleMove(card, target)}
+      onPromote={() => handlePromote(card)}
       onUngroup={() => handleUngroupCard(card)}
     />
   )
@@ -542,6 +587,7 @@ export function BoardColumn({
               label={entry.label}
               count={entry.cards.length}
               votes={entry.votes}
+              reactions={entry.reactions}
               readOnly={readOnly}
               onRename={(label) => handleRenameGroup(entry.groupId, label)}
               onUngroupAll={() => handleUngroupAll(entry.groupId)}
@@ -562,6 +608,7 @@ type CardGroupProps = {
   label: string | null
   count: number
   votes: number
+  reactions: number
   readOnly: boolean
   onRename: (label: string) => void
   onUngroupAll: () => void
@@ -579,6 +626,7 @@ function CardGroup({
   label,
   count,
   votes,
+  reactions,
   readOnly,
   onRename,
   onUngroupAll,
@@ -681,6 +729,17 @@ function CardGroup({
             <ThumbsUp className="h-3 w-3" />
             {votes}
           </span>
+          {/* Reações contam junto na ordenação, então aparecem junto no selo —
+              um total só, com ícone de joinha, seria um número não conferível. */}
+          {reactions > 0 && (
+            <span
+              title={`${reactions} reações no grupo`}
+              className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-muted-foreground"
+            >
+              <SmilePlus className="h-3 w-3" />
+              {reactions}
+            </span>
+          )}
 
           {!readOnly && (
             <Button
@@ -724,6 +783,7 @@ type RetroCardProps = {
   onDelete: () => void
   onEdit: (newText: string) => void
   onMove: (targetColumn: ColumnType) => void
+  onPromote: () => void
   onUngroup: () => void
 }
 
@@ -740,6 +800,7 @@ function RetroCard({
   onDelete,
   onEdit,
   onMove,
+  onPromote,
   onUngroup,
 }: RetroCardProps) {
   const [isEditing, setIsEditing] = useState(false)
@@ -859,10 +920,14 @@ function RetroCard({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                      <Pencil className="w-3.5 h-3.5 mr-2" />
-                      Editar
-                    </DropdownMenuItem>
+                    {/* Reescrever o texto de alguém é falsear o que a pessoa
+                        disse na retro; mover e agrupar seguem abertos. */}
+                    {isOwner && (
+                      <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                        <Pencil className="w-3.5 h-3.5 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
+                    )}
 
                     {otherColumns.map(col => (
                       <DropdownMenuItem key={col} onClick={() => onMove(col)}>
@@ -870,6 +935,13 @@ function RetroCard({
                         Mover para {columnLabels[col]}
                       </DropdownMenuItem>
                     ))}
+
+                    {/* Ações são de outra tabela, então isto move de verdade —
+                        é o que evita duplicar na mão o card que virou ação. */}
+                    <DropdownMenuItem onClick={onPromote}>
+                      <ListChecks className="w-3.5 h-3.5 mr-2" />
+                      Transformar em ação
+                    </DropdownMenuItem>
 
                     {inGroup && (
                       <DropdownMenuItem onClick={onUngroup}>

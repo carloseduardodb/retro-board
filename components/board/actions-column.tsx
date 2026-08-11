@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
-import { Plus, Trash2, X, Send, Pencil, Check } from 'lucide-react'
-import type { ActionCard, RealtimeEvent } from '@/lib/types/database'
+import { Input } from '@/components/ui/input'
+import { Plus, Trash2, X, Send, Pencil, Check, UserRound } from 'lucide-react'
+import type { ActionCard, Participant, RealtimeEvent } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
 
 type ActionsColumnProps = {
@@ -13,6 +14,8 @@ type ActionsColumnProps = {
   sessionToken: string
   participantId: string
   participantName: string
+  /** Quem está na sala agora — vira sugestão no campo de responsável. */
+  participants: Participant[]
   readOnly?: boolean
   broadcast: (event: RealtimeEvent) => void
   trackOperation: <T>(op: () => Promise<T>) => Promise<T>
@@ -23,20 +26,24 @@ export function ActionsColumn({
   sessionToken,
   participantId,
   participantName,
+  participants,
   readOnly = false,
   broadcast,
   trackOperation,
 }: ActionsColumnProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [newText, setNewText] = useState('')
+  const [newResponsible, setNewResponsible] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleAddAction = async () => {
     if (!newText.trim() || isSubmitting) return
 
     const text = newText.trim()
+    const responsible = newResponsible.trim() || null
     setIsSubmitting(true)
     setNewText('')
+    setNewResponsible('')
     setIsAdding(false)
 
     // Optimistic
@@ -45,7 +52,7 @@ export function ActionsColumn({
       id: tempId,
       session_token: sessionToken,
       text,
-      responsible: null,
+      responsible,
       author: participantName || 'Anônimo',
       author_id: participantId,
       created_at: new Date().toISOString(),
@@ -60,6 +67,7 @@ export function ActionsColumn({
           body: JSON.stringify({
             session_token: sessionToken,
             text,
+            responsible,
             author: participantName || 'Anônimo',
             author_id: participantId,
           }),
@@ -81,16 +89,16 @@ export function ActionsColumn({
     }
   }
 
-  const handleEdit = async (action: ActionCard, text: string) => {
+  const handleEdit = async (action: ActionCard, text: string, responsible: string | null) => {
     // Optimistic
-    broadcast({ type: 'action_updated', payload: { ...action, text } })
+    broadcast({ type: 'action_updated', payload: { ...action, text, responsible } })
 
     try {
       await trackOperation(async () => {
         const res = await fetch('/api/actions', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: action.id, text }),
+          body: JSON.stringify({ id: action.id, text, responsible, author_id: participantId }),
         })
 
         if (res.ok) {
@@ -112,7 +120,9 @@ export function ActionsColumn({
 
     try {
       await trackOperation(async () => {
-        await fetch(`/api/actions?id=${actionId}`, { method: 'DELETE' })
+        await fetch(`/api/actions?id=${actionId}&author_id=${encodeURIComponent(participantId)}`, {
+          method: 'DELETE',
+        })
       })
     } catch (error) {
       console.error('Error deleting action:', error)
@@ -151,6 +161,12 @@ export function ActionsColumn({
                   maxLength={500}
                   autoFocus
                 />
+                <ResponsibleField
+                  value={newResponsible}
+                  onChange={setNewResponsible}
+                  participants={participants}
+                  listId="responsible-new"
+                />
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-muted-foreground">
                     {newText.length}/500
@@ -162,6 +178,7 @@ export function ActionsColumn({
                       onClick={() => {
                         setIsAdding(false)
                         setNewText('')
+                        setNewResponsible('')
                       }}
                     >
                       <X className="w-4 h-4" />
@@ -197,7 +214,9 @@ export function ActionsColumn({
             key={action.id}
             action={action}
             readOnly={readOnly}
-            onEdit={(text) => handleEdit(action, text)}
+            isOwner={action.author_id === participantId}
+            participants={participants}
+            onEdit={(text, responsible) => handleEdit(action, text, responsible)}
             onDelete={() => handleDelete(action.id)}
           />
         ))}
@@ -209,18 +228,30 @@ export function ActionsColumn({
 type ActionCardItemProps = {
   action: ActionCard
   readOnly: boolean
-  onEdit: (text: string) => void
+  /** Só quem escreveu a ação pode reescrevê-la ou apagá-la. */
+  isOwner: boolean
+  participants: Participant[]
+  onEdit: (text: string, responsible: string | null) => void
   onDelete: () => void
 }
 
-function ActionCardItem({ action, readOnly, onEdit, onDelete }: ActionCardItemProps) {
+function ActionCardItem({
+  action,
+  readOnly,
+  isOwner,
+  participants,
+  onEdit,
+  onDelete,
+}: ActionCardItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editText, setEditText] = useState(action.text)
+  const [editResponsible, setEditResponsible] = useState(action.responsible ?? '')
 
   const handleSave = () => {
     const text = editText.trim()
-    if (text && text !== action.text) {
-      onEdit(text)
+    const responsible = editResponsible.trim() || null
+    if (text && (text !== action.text || responsible !== action.responsible)) {
+      onEdit(text, responsible)
     }
     setIsEditing(false)
   }
@@ -236,6 +267,14 @@ function ActionCardItem({ action, readOnly, onEdit, onDelete }: ActionCardItemPr
             maxLength={500}
             autoFocus
           />
+          <div className="mt-2">
+            <ResponsibleField
+              value={editResponsible}
+              onChange={setEditResponsible}
+              participants={participants}
+              listId={`responsible-${action.id}`}
+            />
+          </div>
           <div className="flex justify-between items-center mt-2">
             <span className="text-xs text-muted-foreground">{editText.length}/500</span>
             <div className="flex gap-1">
@@ -245,6 +284,7 @@ function ActionCardItem({ action, readOnly, onEdit, onDelete }: ActionCardItemPr
                 onClick={() => {
                   setIsEditing(false)
                   setEditText(action.text)
+                  setEditResponsible(action.responsible ?? '')
                 }}
               >
                 <X className="w-4 h-4" />
@@ -263,7 +303,18 @@ function ActionCardItem({ action, readOnly, onEdit, onDelete }: ActionCardItemPr
     <Card className="group" data-action-id={action.id}>
       <CardContent className="p-3">
         <p className="text-sm whitespace-pre-wrap break-words">{action.text}</p>
-        {!readOnly && (
+
+        {action.responsible && (
+          <div
+            className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+            title="Responsável pela ação"
+          >
+            <UserRound className="h-3 w-3" />
+            {action.responsible}
+          </div>
+        )}
+
+        {!readOnly && isOwner && (
           <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t border-border/50">
             <Button
               variant="ghost"
@@ -272,6 +323,7 @@ function ActionCardItem({ action, readOnly, onEdit, onDelete }: ActionCardItemPr
               title="Editar ação"
               onClick={() => {
                 setEditText(action.text)
+                setEditResponsible(action.responsible ?? '')
                 setIsEditing(true)
               }}
             >
@@ -290,5 +342,47 @@ function ActionCardItem({ action, readOnly, onEdit, onDelete }: ActionCardItemPr
         )}
       </CardContent>
     </Card>
+  )
+}
+
+/**
+ * Responsável pela ação.
+ *
+ * É texto livre com sugestão de quem está na sala: quem vai tocar a ação
+ * costuma estar na retro, mas nem sempre — e amarrar o campo à lista de
+ * presentes impediria combinar algo com quem faltou.
+ */
+function ResponsibleField({
+  value,
+  onChange,
+  participants,
+  listId,
+}: {
+  value: string
+  onChange: (value: string) => void
+  participants: Participant[]
+  listId: string
+}) {
+  const names = [...new Set(participants.map((p) => p.name).filter(Boolean))]
+
+  return (
+    <div className="flex items-center gap-2">
+      <UserRound className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <Input
+        list={names.length > 0 ? listId : undefined}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Responsável (opcional)"
+        maxLength={60}
+        className="h-8 text-sm"
+      />
+      {names.length > 0 && (
+        <datalist id={listId}>
+          {names.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+      )}
+    </div>
   )
 }

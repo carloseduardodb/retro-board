@@ -117,3 +117,89 @@ test.describe('Multi-usuário - Tempo Real', () => {
     await joao.context().close()
   })
 })
+
+test.describe('Multi-usuário - Autoria e desenho', () => {
+  test('só o dono pode editar e excluir o próprio card', async ({ browser }) => {
+    const { url } = await createSession(browser)
+    const ana = await joinAsUser(browser, url, 'Ana')
+    const bruno = await joinAsUser(browser, url, 'Bruno')
+
+    const coluna = ana.getByTestId('column-good')
+    await coluna.getByRole('button', { name: 'Adicionar' }).click()
+    await coluna.getByPlaceholder('Digite seu feedback...').fill('Card escrito pela Ana')
+    await coluna.locator('[class*="border-dashed"]').locator('button').last().click()
+    await expect(
+      coluna.locator('[data-card-id]:not([data-card-id^="temp-"])')
+    ).toHaveCount(1, { timeout: 10000 })
+
+    const menuDo = async (page: Page) => {
+      const card = page.locator('[data-card-id]').first()
+      await card.hover()
+      await card.getByTitle('Ações do card').click()
+      const itens = await page.getByRole('menuitem').allInnerTexts()
+      await page.keyboard.press('Escape')
+      return itens.map((t) => t.trim())
+    }
+
+    // Reescrever ou apagar o que outra pessoa disse na retro falsearia o board;
+    // mover de coluna e transformar em ação seguem abertos, são facilitação.
+    const daAna = await menuDo(ana)
+    expect(daAna).toContain('Editar')
+    expect(daAna).toContain('Excluir')
+
+    await bruno.locator('[data-card-id]').first().waitFor({ timeout: 10000 })
+    const doBruno = await menuDo(bruno)
+    expect(doBruno).not.toContain('Editar')
+    expect(doBruno).not.toContain('Excluir')
+    expect(doBruno).toContain('Transformar em ação')
+
+    await ana.context().close()
+    await bruno.context().close()
+  })
+
+  test('limpar o desenho não apaga o traço dos outros', async ({ browser }) => {
+    const { url } = await createSession(browser)
+    const ana = await joinAsUser(browser, url, 'Ana')
+    const bruno = await joinAsUser(browser, url, 'Bruno')
+
+    const rabiscar = async (page: Page, y: number) => {
+      await page.getByRole('button', { name: /modo desenho/i }).click()
+      await expect(page.getByRole('button', { name: /limpar o meu/i })).toBeVisible()
+      await page.mouse.move(400, y)
+      await page.mouse.down()
+      for (let x = 400; x <= 700; x += 30) await page.mouse.move(x, y)
+      await page.mouse.up()
+      await page.waitForTimeout(400)
+    }
+
+    await rabiscar(ana, 300)
+    await rabiscar(bruno, 400)
+    await ana.waitForTimeout(800)
+
+    const pixels = (page: Page) =>
+      page.evaluate(() => {
+        const canvas = document.querySelector('canvas') as HTMLCanvasElement | null
+        if (!canvas) return 0
+        const ctx = canvas.getContext('2d')!
+        const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        let n = 0
+        for (let i = 3; i < data.length; i += 4) if (data[i] > 0) n++
+        return n
+      })
+
+    const antes = await pixels(ana)
+    expect(antes).toBeGreaterThan(0)
+
+    // Uma borracha que leva o traço dos outros junto é convite para sacanagem.
+    await bruno.getByRole('button', { name: /limpar o meu/i }).click()
+    await ana.waitForTimeout(1000)
+
+    const depois = await pixels(ana)
+    expect(depois).toBeGreaterThan(0)
+    expect(depois).toBeLessThan(antes)
+
+    await ana.context().close()
+    await bruno.context().close()
+  })
+})
+

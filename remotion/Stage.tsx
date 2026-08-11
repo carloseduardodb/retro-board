@@ -28,6 +28,7 @@ import {
   columnInnerTop,
   columnPan,
   columnX,
+  weightOf,
   type CardMetrics,
   type Timeline,
 } from './timeline'
@@ -658,6 +659,7 @@ function GroupBlockView({
           </span>
           <span style={{ marginLeft: 'auto', fontSize: metrics.fontSize - 5, color: palette.muted }}>
             {group.count} cards · {group.votes} 👍
+            {group.reactions > 0 && ` · ${group.reactions} 😀`}
           </span>
         </div>
       </div>
@@ -729,7 +731,7 @@ function Scribbles({ timeline }: { timeline: Timeline }) {
 
   // Anotação do recap sobre o card mais votado. Sem votos não há o que destacar
   // e a cena nem existe (`duration: 0`) — desenhar aqui seria inventar um gesto.
-  const highlight = [...timeline.cards].sort((a, b) => b.card.votes - a.card.votes)[0]
+  const highlight = [...timeline.cards].sort((a, b) => weightOf(b.card) - weightOf(a.card))[0]
   if (draw.duration === 0 || !highlight) return null
 
   const target = timeline.hasGroups ? highlight.grouped : highlight.ranked
