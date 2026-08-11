@@ -7,12 +7,21 @@
  * Os valores espelham as variáveis de `app/globals.css`.
  */
 
+import { loadFont } from '@remotion/google-fonts/Geist'
+
 export const FPS = 30
 export const WIDTH = 1920
 export const HEIGHT = 1080
 
-export const font =
-  "'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+/**
+ * A Geist chega ao app pelo `next/font`, que só existe dentro do build do Next.
+ * O bundle de renderização não tem acesso a ele, então a composição carrega a
+ * fonte por conta própria — sem isso o MP4 baixado sairia na fonte padrão do
+ * sistema, com um desenho de letra diferente do vídeo que a pessoa assistiu.
+ */
+const geist = loadFont('normal', { weights: ['400', '600', '700', '800'], subsets: ['latin'] })
+
+export const font = `${geist.fontFamily}, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`
 
 export const palette = {
   background: '#f5f7fb',

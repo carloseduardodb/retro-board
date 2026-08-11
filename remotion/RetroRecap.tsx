@@ -8,7 +8,16 @@
 'use client'
 
 import React, { useMemo } from 'react'
-import { AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion'
+import {
+  AbsoluteFill,
+  Audio,
+  Easing,
+  interpolate,
+  spring,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+} from 'remotion'
 
 import { buildCamera, cameraAt } from './camera'
 import { Stage } from './Stage'
@@ -18,17 +27,32 @@ import type { RecapData } from './types'
 
 const ease = { easing: Easing.inOut(Easing.cubic), extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const
 
+/**
+ * Loop gerado por `scripts/build-recap-theme.py`.
+ *
+ * `staticFile` resolve nos dois contextos: no player dentro do Next devolve o
+ * caminho de `public/`, e no bundle do render devolve a base estática servida
+ * pelo Remotion.
+ */
+export const recapTheme = () => staticFile('audio/recap-theme.mp3')
+
 export type RetroRecapProps = {
   data: RecapData
   /** Oculta as legendas de cena — útil quando a página já explica em texto. */
   showCaptions?: boolean
+  /**
+   * Liga a trilha. Fica desligada por padrão de propósito: a landing dá play
+   * sozinha, e navegador nenhum permite autoplay com som — pedir áudio ali
+   * faria o vídeo simplesmente não começar.
+   */
+  music?: boolean
 }
 
 export function useRecapTimeline(data: RecapData): Timeline {
   return useMemo(() => buildTimeline(data), [data])
 }
 
-export function RetroRecap({ data, showCaptions = true }: RetroRecapProps) {
+export function RetroRecap({ data, showCaptions = true, music = false }: RetroRecapProps) {
   const frame = useCurrentFrame()
   const timeline = useRecapTimeline(data)
 
@@ -66,6 +90,7 @@ export function RetroRecap({ data, showCaptions = true }: RetroRecapProps) {
         </AbsoluteFill>
       </AbsoluteFill>
 
+      {music && <Theme timeline={timeline} />}
       <RevealFlash at={timeline.marks.revealAt} />
       <HighlightsOverlay timeline={timeline} />
       {showCaptions && <Captions timeline={timeline} />}
@@ -77,6 +102,32 @@ export function RetroRecap({ data, showCaptions = true }: RetroRecapProps) {
       />
       <OutroOverlay data={data} timeline={timeline} from={outro.from} duration={outro.duration} />
     </AbsoluteFill>
+  )
+}
+
+/* ---------------------------------------------------------------- trilha */
+
+/**
+ * A trilha entra por baixo: sobe na abertura, abaixa um pouco no silêncio da
+ * revelação — o beat funciona melhor com o som recuando — e sai no fim.
+ */
+function Theme({ timeline }: { timeline: Timeline }) {
+  const { revealAt } = timeline.marks
+  const end = timeline.durationInFrames
+
+  return (
+    <Audio
+      src={recapTheme()}
+      loop
+      volume={(frame) =>
+        interpolate(
+          frame,
+          [0, 40, revealAt - 20, revealAt + 4, revealAt + 50, end - 70, end - 6],
+          [0, 0.62, 0.62, 0.3, 0.62, 0.62, 0],
+          ease,
+        )
+      }
+    />
   )
 }
 

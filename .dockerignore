@@ -1,0 +1,13 @@
+# O node_modules vem do estágio `deps`, instalado a partir do lockfile — se o do
+# host entrasse aqui, ele sobrescreveria o instalado e o build deixaria de ser
+# reprodutível (e carregaria binários nativos da máquina de quem buildou).
+node_modules
+.next
+.remotion-bundle
+
+.git
+.github
+tests
+test-results
+playwright-report
+*.md

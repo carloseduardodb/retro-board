@@ -14,3 +14,8 @@ node_modules
 .next/
 .DS_Store
 .env
+# Bundle da composição do recap, gerado no build (`npm run bundle:recap`)
+.remotion-bundle/
+
+# Cache incremental do tsc
+tsconfig.tsbuildinfo
