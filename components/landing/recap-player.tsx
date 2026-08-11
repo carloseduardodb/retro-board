@@ -14,6 +14,8 @@ type RecapPlayerProps = {
   loop?: boolean
   controls?: boolean
   showCaptions?: boolean
+  /** Liga a trilha. Só faz sentido onde há controle de volume em tela. */
+  music?: boolean
   className?: string
 }
 
@@ -22,7 +24,15 @@ type RecapPlayerProps = {
  * fictícios) e no recap de uma sessão real (dados do board).
  */
 export const RecapPlayer = forwardRef<PlayerRef, RecapPlayerProps>(function RecapPlayer(
-  { data, autoPlay = false, loop = false, controls = false, showCaptions = true, className },
+  {
+    data,
+    autoPlay = false,
+    loop = false,
+    controls = false,
+    showCaptions = true,
+    music = false,
+    className,
+  },
   ref,
 ) {
   const durationInFrames = useMemo(() => buildTimeline(data).durationInFrames, [data])
@@ -31,7 +41,7 @@ export const RecapPlayer = forwardRef<PlayerRef, RecapPlayerProps>(function Reca
     <Player
       ref={ref}
       component={RetroRecap}
-      inputProps={{ data, showCaptions }}
+      inputProps={{ data, showCaptions, music }}
       durationInFrames={durationInFrames}
       compositionWidth={WIDTH}
       compositionHeight={HEIGHT}
@@ -39,6 +49,10 @@ export const RecapPlayer = forwardRef<PlayerRef, RecapPlayerProps>(function Reca
       autoPlay={autoPlay}
       loop={loop}
       controls={controls}
+      // Autoplay com som é bloqueado por todo navegador — o vídeo começa mudo e
+      // quem quiser trilha liga no controle de volume.
+      initiallyMuted={music && autoPlay}
+      showVolumeControls={music}
       clickToPlay={controls}
       doubleClickToFullscreen={controls}
       className={className}
