@@ -33,7 +33,16 @@ export function RecapClient({ session, cards, actionCards }: RecapClientProps) {
   const seconds = useRecapSeconds(data)
   const enough = hasEnoughForRecap(cards, actionCards)
 
-  const [muted, setMuted] = useState(true)
+  /**
+   * A trilha só é montada quando alguém pede.
+   *
+   * Autoplay com som é bloqueado por todo navegador, e tocar mudo para desmutar
+   * depois não funciona: o player troca a faixa por um placeholder silencioso e
+   * não volta atrás. Ligar o som remonta o player — e como isso nasce de um
+   * clique, o navegador libera o áudio. De quebra, a trilha começa do início,
+   * junto com a abertura, em vez de entrar no meio.
+   */
+  const [soundOn, setSoundOn] = useState(false)
 
   const restart = () => {
     playerRef.current?.seekTo(0)
@@ -94,19 +103,7 @@ export function RecapClient({ session, cards, actionCards }: RecapClientProps) {
     }
   }, [session.token])
 
-  // O player começa mudo (autoplay com som é bloqueado); daqui em diante é
-  // escolha de quem assiste.
-  const toggleSound = useCallback(() => {
-    const player = playerRef.current
-    if (!player) return
-    if (player.isMuted()) {
-      player.unmute()
-      setMuted(false)
-    } else {
-      player.mute()
-      setMuted(true)
-    }
-  }, [])
+  const toggleSound = useCallback(() => setSoundOn((on) => !on), [])
 
   return (
     <main className="min-h-screen bg-background">
@@ -148,7 +145,18 @@ export function RecapClient({ session, cards, actionCards }: RecapClientProps) {
           <>
             <div className="mt-8 overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
               <div className="aspect-video w-full">
-                {isReady && <RecapPlayer ref={playerRef} data={data} controls autoPlay music />}
+                {isReady && (
+                  <RecapPlayer
+                    // A troca de chave remonta o player: é o que faz o áudio
+                    // nascer dentro do clique que o navegador exige.
+                    key={soundOn ? 'com-som' : 'sem-som'}
+                    ref={playerRef}
+                    data={data}
+                    controls
+                    autoPlay
+                    music={soundOn}
+                  />
+                )}
               </div>
             </div>
 
@@ -162,12 +170,12 @@ export function RecapClient({ session, cards, actionCards }: RecapClientProps) {
                 Continuar
               </Button>
               <Button onClick={toggleSound} variant="ghost" size="sm">
-                {muted ? (
-                  <VolumeX className="mr-2 h-4 w-4" />
-                ) : (
+                {soundOn ? (
                   <Volume2 className="mr-2 h-4 w-4" />
+                ) : (
+                  <VolumeX className="mr-2 h-4 w-4" />
                 )}
-                {muted ? 'Ativar som' : 'Silenciar'}
+                {soundOn ? 'Silenciar' : 'Ativar som'}
               </Button>
               <Button onClick={download} disabled={downloading} variant="secondary" size="sm">
                 {downloading ? (
