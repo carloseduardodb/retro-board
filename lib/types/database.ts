@@ -61,6 +61,7 @@ export type Database = {
           timer_ends_at?: string | null
           timer_remaining_seconds?: number | null
         }
+        Relationships: []
       }
       cards: {
         Row: {
@@ -105,6 +106,7 @@ export type Database = {
           reactions?: Reactions
           created_at?: string
         }
+        Relationships: []
       }
       action_cards: {
         Row: {
@@ -134,6 +136,7 @@ export type Database = {
           author_id?: string
           created_at?: string
         }
+        Relationships: []
       }
       suggestions: {
         Row: {
@@ -160,6 +163,7 @@ export type Database = {
           status?: 'pending' | 'approved' | 'rejected'
           created_at?: string
         }
+        Relationships: []
       }
       prev_actions: {
         Row: {
@@ -186,6 +190,7 @@ export type Database = {
           done?: boolean
           created_at?: string
         }
+        Relationships: []
       }
       board_snapshots: {
         Row: {
@@ -209,11 +214,13 @@ export type Database = {
           snapshot_data?: SnapshotData
           created_at?: string
         }
+        Relationships: []
       }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
     Enums: Record<string, never>
+    CompositeTypes: Record<string, never>
   }
 }
 
