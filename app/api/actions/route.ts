@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { denyUnlessOwner } from '@/lib/ownership'
+import type { Database } from '@/lib/types/database'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -62,7 +63,7 @@ export async function PATCH(request: Request) {
       )
     }
 
-    const updateData: Record<string, unknown> = {}
+    const updateData: Database['public']['Tables']['action_cards']['Update'] = {}
 
     if (text !== undefined) {
       if (typeof text !== 'string' || !text.trim() || text.length > 500) {
