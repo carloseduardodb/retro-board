@@ -16,6 +16,35 @@ const TIMEOUT_MS = 110_000;
 // Tokens por lote nos deletes — o filtro `in.(...)` viaja na URL.
 const DELETE_CHUNK = 200;
 
+// O PostgREST devolve no máximo 1000 linhas por request e trunca em silêncio,
+// então a leitura precisa paginar até acabar.
+const PAGE_SIZE = 1000;
+
+async function fetchAll<T>(
+  page: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  label: string,
+): Promise<T[]> {
+  const all: T[] = [];
+
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await page(from, from + PAGE_SIZE - 1);
+
+    if (error) {
+      throw new Error(`Erro ao buscar ${label}: ${error.message}`);
+    }
+
+    const rows = data ?? [];
+    all.push(...rows);
+
+    if (rows.length < PAGE_SIZE) {
+      return all;
+    }
+  }
+}
+
 function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) {
@@ -51,25 +80,21 @@ export async function POST() {
     const supabase = await createClient();
     const referenceDate = calculateReferenceDate();
 
-    // Busca todos os cards e action_cards de uma vez. O volume é pequeno
-    // (centenas de linhas) e substitui duas queries por sessão.
-    const [cardsResult, actionCardsResult] = await Promise.all([
-      supabase.from("cards").select("*"),
-      supabase.from("action_cards").select("*"),
+    // Busca todos os cards e action_cards de uma vez, paginando.
+    // Substitui duas queries por sessão.
+    const [allCards, allActionCards] = await Promise.all([
+      fetchAll(
+        (from, to) => supabase.from("cards").select("*").range(from, to),
+        "cards",
+      ),
+      fetchAll(
+        (from, to) => supabase.from("action_cards").select("*").range(from, to),
+        "action_cards",
+      ),
     ]);
 
-    if (cardsResult.error) {
-      throw new Error(`Erro ao buscar cards: ${cardsResult.error.message}`);
-    }
-
-    if (actionCardsResult.error) {
-      throw new Error(
-        `Erro ao buscar action_cards: ${actionCardsResult.error.message}`,
-      );
-    }
-
-    const cardsByToken = groupByToken(cardsResult.data ?? []);
-    const actionCardsByToken = groupByToken(actionCardsResult.data ?? []);
+    const cardsByToken = groupByToken(allCards);
+    const actionCardsByToken = groupByToken(allActionCards);
 
     // Só interessam as sessões que têm algum conteúdo; as demais seriam
     // puladas de qualquer forma.
