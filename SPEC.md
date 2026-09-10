@@ -103,11 +103,11 @@ O timer fica visível no sidebar para todos os participantes. É sincronizado em
 **Estados:**
 
 - **Configurando** — estado inicial. Campo numérico com minutos (padrão: 5). O valor é propagado em tempo real para todos ao ser alterado. Botão "Iniciar".
-- **Rodando** — exibe MM:SS decrementando. Botões "Pausar" e "+1 min".
-- **Pausado** — tempo congelado. Botões "Retomar" e "+1 min".
-- **Expirado** — display vermelho em 00:00. Som de alerta (3 beeps via Web Audio API, sem fallback se bloqueado). Botão "+1 min" (volta a rodar a partir de 1:00).
+- **Rodando** — exibe MM:SS decrementando. Botões "Pausar", "+1 min" e "Reiniciar". Nos últimos 15 segundos toca um tique-taque.
+- **Pausado** — tempo congelado. Botões "Retomar", "+1 min" e "Reiniciar".
+- **Expirado** — display vermelho em 00:00. Som de alerta (3 beeps via Web Audio API, sem fallback se bloqueado). Botões "+1 min" (volta a rodar a partir de 1:00) e "Reiniciar".
 
-Não é possível reiniciar o timer com novo valor — apenas adicionar +1 minuto.
+O botão "Reiniciar" devolve o timer a **configurando**, preservando os minutos escolhidos — é o caminho para rodar uma nova rodada com outro valor. Ele não expira o timer: em configurando os cards ficam visíveis para todos.
 
 Ao encerrar a retro, o timer é resetado para configurando com 5 minutos.
 

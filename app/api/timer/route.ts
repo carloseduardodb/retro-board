@@ -55,7 +55,7 @@ export async function POST(request: Request) {
           )
         }
 
-        if (session.timer_status === 'paused' && session.timer_remaining_seconds) {
+        if (session.timer_status === 'paused' && session.timer_remaining_seconds !== null) {
           // Resume from paused state
           const resumeEndsAt = new Date(Date.now() + session.timer_remaining_seconds * 1000)
           updateData = {
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       }
 
       case 'resume': {
-        if (session.timer_status !== 'paused' || !session.timer_remaining_seconds) {
+        if (session.timer_status !== 'paused' || session.timer_remaining_seconds === null) {
           return NextResponse.json(
             { error: 'timer_not_running', message: 'Timer não está pausado' },
             { status: 400 }
@@ -144,10 +144,15 @@ export async function POST(request: Request) {
       }
 
       case 'reset': {
+        // Volta ao estado inicial para que o facilitador possa escolher um novo
+        // tempo. Antes isto era um clone do `finish`: o timer caía em
+        // "expirado" e o único caminho de volta era o "+1 min", que prende a
+        // sessão em 01:00 e ainda reesconde os cards a cada reinício.
         updateData = {
-          timer_status: 'finished',
+          timer_status: 'configuring',
+          timer_minutes: session.timer_minutes || 5,
           timer_ends_at: null,
-          timer_remaining_seconds: 0,
+          timer_remaining_seconds: null,
         }
         break
       }
