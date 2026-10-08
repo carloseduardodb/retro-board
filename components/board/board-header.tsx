@@ -21,7 +21,8 @@ import {
   Moon,
   Sun,
   Pencil,
-  Clapperboard
+  Clapperboard,
+  Gamepad2
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -126,6 +127,19 @@ export function BoardHeader({
           >
             <Pencil className="w-4 h-4" />
             <span className="sr-only">Modo desenho</span>
+          </Button>
+
+          {/* Quebra-gelo: abre o jogo numa nova guia, num canal só deste board */}
+          <Button asChild variant="ghost" size="sm" className="h-8 w-8 p-0">
+            <a
+              href={`/games/sabotador.html?board=${encodeURIComponent(token)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Quebra-gelo: Sabotador da Sprint"
+            >
+              <Gamepad2 className="w-4 h-4" />
+              <span className="sr-only">Abrir quebra-gelo</span>
+            </a>
           </Button>
 
           {/* Theme toggle */}
