@@ -19,6 +19,19 @@ export function TimerPanel({ session, sessionToken, broadcast }: TimerPanelProps
   const hasPlayedExpiredSound = useRef(false)
   const hasCalledFinish = useRef(false)
   const tickTockRef = useRef<{ audioContext: AudioContext; interval: ReturnType<typeof setInterval> } | null>(null)
+  // Relógio do servidor menos o local, em ms. O timer_ends_at vem do servidor;
+  // sem descontar isto, um computador adiantado vê o tempo acabar antes.
+  const clockOffset = useRef(0)
+
+  useEffect(() => {
+    const t0 = Date.now()
+    fetch('/api/timer')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (typeof data?.now === 'number') clockOffset.current = data.now - (t0 + Date.now()) / 2
+      })
+      .catch(() => {})
+  }, [])
 
   const status = session.timer_status || 'configuring'
   const minutes = session.timer_minutes || 5
@@ -27,7 +40,7 @@ export function TimerPanel({ session, sessionToken, broadcast }: TimerPanelProps
   const calculateRemaining = useCallback(() => {
     if (status === 'running' && session.timer_ends_at) {
       const endsAt = new Date(session.timer_ends_at).getTime()
-      const now = Date.now()
+      const now = Date.now() + clockOffset.current
       const remaining = Math.max(0, Math.floor((endsAt - now) / 1000))
       return remaining
     }

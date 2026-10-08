@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
+// Hora do servidor, para o painel descontar a diferença do relógio local.
+export function GET() {
+  return NextResponse.json({ now: Date.now() })
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient()
   
@@ -158,6 +165,17 @@ export async function POST(request: Request) {
       }
 
       case 'finish': {
+        // Todo cliente chama `finish` ao ver 00:00, e com o relógio local. Um
+        // computador adiantado derrubava o timer de todo mundo segundos depois
+        // de um "+1 min". Só encerra quando o tempo acabou pelo relógio do
+        // servidor; a folga cobre o arredondamento do display (até 1s antes).
+        const endsAt = session.timer_ends_at ? new Date(session.timer_ends_at).getTime() : null
+        if (session.timer_status !== 'running' || (endsAt !== null && Date.now() < endsAt - 1500)) {
+          return NextResponse.json(
+            { error: 'timer_not_expired', message: 'O tempo ainda não acabou', session },
+            { status: 409 }
+          )
+        }
         updateData = {
           timer_status: 'finished',
           timer_ends_at: null,
