@@ -79,7 +79,14 @@ export async function POST(request: Request) {
       .delete()
       .eq('session_token', session_token)
 
-    // 6. Reset timer to configuring state
+    // 6. Arquiva os kudos do ciclo — o mural recomeça vazio, mas nada se perde
+    await supabase
+      .from('kudos')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('session_token', session_token)
+      .is('archived_at', null)
+
+    // 7. Reset timer to configuring state
     await supabase
       .from('sessions')
       .update({

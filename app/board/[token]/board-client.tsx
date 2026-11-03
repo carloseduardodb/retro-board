@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useParticipant } from '@/hooks/use-participant'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useHistoryRealtime } from '@/hooks/use-history-realtime'
-import type { Session, Card, ActionCard, Suggestion, PrevAction, SnapshotData } from '@/lib/types/database'
+import type { Session, Card, ActionCard, Suggestion, PrevAction, Kudo, SnapshotData } from '@/lib/types/database'
 import { BoardHeader } from '@/components/board/board-header'
 import { BoardColumn } from '@/components/board/board-column'
 import { ActionsColumn } from '@/components/board/actions-column'
@@ -12,6 +12,7 @@ import { TimerPanel } from '@/components/board/timer-panel'
 import { ParticipantsPanel } from '@/components/board/participants-panel'
 import { PrevActionsPanel } from '@/components/board/prev-actions-panel'
 import { AIPanel } from '@/components/board/ai-panel'
+import { KudosPanel } from '@/components/board/kudos-panel'
 import { HistoryCalendar } from '@/components/board/history-calendar'
 import { HistoryBanner } from '@/components/board/history-banner'
 import { DrawingLayer } from '@/components/board/drawing-layer'
@@ -40,6 +41,7 @@ type BoardClientProps = {
   initialActionCards: ActionCard[]
   initialSuggestions: Suggestion[]
   initialPrevActions: PrevAction[]
+  initialKudos: Kudo[]
 }
 
 export function BoardClient({
@@ -48,10 +50,12 @@ export function BoardClient({
   initialActionCards,
   initialSuggestions,
   initialPrevActions,
+  initialKudos,
 }: BoardClientProps) {
   const { participantId, participantName, updateName, isReady } = useParticipant()
   const [showAIPanel, setShowAIPanel] = useState(false)
   const [showPrevActions, setShowPrevActions] = useState(false)
+  const [showKudos, setShowKudos] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
   const [isDrawing, setIsDrawing] = useState(false)
   const [pendingOps, setPendingOps] = useState(0)
@@ -70,6 +74,7 @@ export function BoardClient({
     actionCards,
     suggestions,
     prevActions,
+    kudos,
     session: realtimeSession,
     participants,
     isConnected,
@@ -80,7 +85,34 @@ export function BoardClient({
     actionCards: initialActionCards,
     suggestions: initialSuggestions,
     prevActions: initialPrevActions,
+    kudos: initialKudos,
   })
+
+  // Kudos novos desde a última vez que este navegador abriu o mural. O mural
+  // vive entre uma retro e outra, então o contador é o que avisa quem volta.
+  const kudosSeenKey = `retro_kudos_seen:${session.token}`
+  const [kudosSeenAt, setKudosSeenAt] = useState<string | null>(null)
+  useEffect(() => {
+    try {
+      setKudosSeenAt(localStorage.getItem(kudosSeenKey) ?? '')
+    } catch {
+      setKudosSeenAt('')
+    }
+  }, [kudosSeenKey])
+
+  const markKudosSeen = useCallback(() => {
+    const now = new Date().toISOString()
+    setKudosSeenAt(now)
+    try {
+      localStorage.setItem(kudosSeenKey, now)
+    } catch {
+      // Sem storage o contador só não persiste entre visitas.
+    }
+  }, [kudosSeenKey])
+
+  const unreadKudos = kudosSeenAt === null || showKudos
+    ? 0
+    : kudos.filter(k => k.author_id !== participantId && k.created_at > kudosSeenAt).length
 
   const currentSession = realtimeSession || session
 
@@ -263,7 +295,7 @@ export function BoardClient({
   const handleCloseRetro = async () => {
     if (isClosing) return
     const confirmed = window.confirm(
-      'Tem certeza que deseja encerrar a retro? Todos os cards serão removidos e as ações serão salvas para a próxima sprint.'
+      'Tem certeza que deseja encerrar a retro? Todos os cards serão removidos, as ações serão salvas para a próxima sprint e o mural de kudos recomeça.'
     )
     if (!confirmed) return
 
@@ -307,6 +339,11 @@ export function BoardClient({
         isSyncing={pendingOps > 0}
         isDrawing={isDrawing}
         onToggleDrawing={() => setIsDrawing(v => !v)}
+        unreadKudos={unreadKudos}
+        onShowKudos={() => {
+          setShowKudos(true)
+          markKudosSeen()
+        }}
         onShowPrevActions={() => setShowPrevActions(true)}
         onShowAI={() => setShowAIPanel(true)}
         onCloseRetro={handleCloseRetro}
@@ -415,6 +452,22 @@ export function BoardClient({
           participantId={participantId}
           broadcast={broadcast}
           onClose={() => setShowPrevActions(false)}
+        />
+      )}
+
+      {/* Mural de Kudos */}
+      {showKudos && (
+        <KudosPanel
+          kudos={kudos}
+          sessionToken={session.token}
+          participantId={participantId}
+          participantName={participantName}
+          participants={participants}
+          broadcast={broadcast}
+          onClose={() => {
+            setShowKudos(false)
+            markKudosSeen()
+          }}
         />
       )}
 

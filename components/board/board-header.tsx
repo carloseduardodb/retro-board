@@ -21,7 +21,8 @@ import {
   Moon,
   Sun,
   Pencil,
-  Clapperboard
+  Clapperboard,
+  Heart
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -32,6 +33,8 @@ type BoardHeaderProps = {
   isSyncing: boolean
   isDrawing: boolean
   onToggleDrawing: () => void
+  unreadKudos: number
+  onShowKudos: () => void
   onShowPrevActions: () => void
   onShowAI: () => void
   onCloseRetro: () => void
@@ -44,6 +47,8 @@ export function BoardHeader({
   isSyncing,
   isDrawing,
   onToggleDrawing,
+  unreadKudos,
+  onShowKudos,
   onShowPrevActions,
   onShowAI,
   onCloseRetro,
@@ -114,6 +119,28 @@ export function BoardHeader({
             <Users className="w-4 h-4" />
             <span>{participantsCount}</span>
           </div>
+
+          {/* Mural de kudos */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="relative h-8 w-8 p-0"
+            onClick={onShowKudos}
+            title="Mural de Kudos"
+          >
+            <Heart className="w-4 h-4" />
+            {unreadKudos > 0 && (
+              <span
+                className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-pink-500 text-white text-[10px] font-semibold leading-4 text-center"
+                aria-hidden
+              >
+                {unreadKudos > 9 ? '9+' : unreadKudos}
+              </span>
+            )}
+            <span className="sr-only">
+              Mural de Kudos{unreadKudos > 0 ? ` (${unreadKudos} novos)` : ''}
+            </span>
+          </Button>
 
           {/* Modo desenho */}
           <Button

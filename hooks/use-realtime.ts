@@ -9,6 +9,7 @@ import type {
   Session,
   Suggestion,
   PrevAction,
+  Kudo,
   Participant,
   RealtimeEvent,
 } from "@/lib/types/database";
@@ -18,6 +19,7 @@ type RealtimeState = {
   actionCards: ActionCard[];
   suggestions: Suggestion[];
   prevActions: PrevAction[];
+  kudos: Kudo[];
   session: Session | null;
   participants: Participant[];
   isConnected: boolean;
@@ -37,6 +39,7 @@ export function useRealtime(
     actionCards: ActionCard[];
     suggestions: Suggestion[];
     prevActions: PrevAction[];
+    kudos: Kudo[];
   },
 ): UseRealtimeReturn {
   const [state, setState] = useState<RealtimeState>({
@@ -44,6 +47,7 @@ export function useRealtime(
     actionCards: initialData.actionCards,
     suggestions: initialData.suggestions,
     prevActions: initialData.prevActions,
+    kudos: initialData.kudos,
     session: initialData.session,
     participants: [],
     isConnected: false,
@@ -152,9 +156,28 @@ export function useRealtime(
             ),
           };
 
+        case "kudo_added":
+          if (prev.kudos.some((k) => k.id === event.payload.id)) return prev;
+          return { ...prev, kudos: [...prev.kudos, event.payload] };
+
+        case "kudo_updated":
+          return {
+            ...prev,
+            kudos: prev.kudos.map((k) =>
+              k.id === event.payload.id ? event.payload : k,
+            ),
+          };
+
+        case "kudo_deleted":
+          return {
+            ...prev,
+            kudos: prev.kudos.filter((k) => k.id !== event.payload.id),
+          };
+
         case "retro_closed":
           return {
             ...prev,
+            kudos: [],
             cards: [],
             actionCards: [],
             suggestions: [],

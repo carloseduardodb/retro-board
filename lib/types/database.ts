@@ -192,6 +192,45 @@ export type Database = {
         }
         Relationships: []
       }
+      kudos: {
+        Row: {
+          id: string
+          session_token: string
+          to_name: string
+          message: string
+          author: string
+          author_id: string
+          anonymous: boolean
+          likes: string[]
+          archived_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_token: string
+          to_name: string
+          message: string
+          author: string
+          author_id: string
+          anonymous?: boolean
+          likes?: string[]
+          archived_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_token?: string
+          to_name?: string
+          message?: string
+          author?: string
+          author_id?: string
+          anonymous?: boolean
+          likes?: string[]
+          archived_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       board_snapshots: {
         Row: {
           id: string
@@ -231,6 +270,7 @@ export type ActionCard = Database['public']['Tables']['action_cards']['Row']
 export type Suggestion = Database['public']['Tables']['suggestions']['Row']
 export type PrevAction = Database['public']['Tables']['prev_actions']['Row']
 export type BoardSnapshot = Database['public']['Tables']['board_snapshots']['Row']
+export type Kudo = Database['public']['Tables']['kudos']['Row']
 
 export type ColumnType = 'good' | 'bad' | 'ideas' | 'actions'
 export type TimerStatus = 'configuring' | 'running' | 'paused' | 'finished'
@@ -256,3 +296,6 @@ export type RealtimeEvent =
   | { type: 'suggestion_updated'; payload: Suggestion }
   | { type: 'prev_action_updated'; payload: PrevAction }
   | { type: 'retro_closed'; payload: { prevActions: PrevAction[] } }
+  | { type: 'kudo_added'; payload: Kudo }
+  | { type: 'kudo_updated'; payload: Kudo }
+  | { type: 'kudo_deleted'; payload: { id: string } }

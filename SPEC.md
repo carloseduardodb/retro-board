@@ -141,6 +141,20 @@ O header tem um botão de lápis que liga o **modo desenho**. Nele, uma camada d
 - Os pontos são normalizados (0..1) em relação à área do board, para que o traço caia no lugar equivalente em telas de tamanhos diferentes.
 - Transporte: canal de broadcast próprio (`draw:<token>`), separado do canal do board, com os pontos enviados em lotes a cada 60 ms. Nada disso passa pelo estado do React — o canvas lê os traços de um ref dentro de um `requestAnimationFrame`.
 
+## 9.2 Mural de Kudos
+
+Espaço para o time reconhecer uns aos outros **entre uma retro e a outra** — não depende do timer nem de a retro estar acontecendo: basta abrir o link do board a qualquer momento da sprint.
+
+O botão de coração no header abre o mural. Ele mostra um contador com os kudos novos desde a última vez que aquele navegador abriu o mural (guardado em `localStorage` sob `retro_kudos_seen:<TOKEN>`); os kudos do próprio participante não contam.
+
+- **Escrever:** destinatário (texto livre, máximo 20 caracteres, com sugestões de quem está online e de quem já recebeu kudos no ciclo) e mensagem (máximo 280 caracteres). `Ctrl/⌘+Enter` envia.
+- **Assinado ou anônimo:** por padrão o kudo leva o nome de quem escreveu. Marcando "Enviar anonimamente", o nome nem é gravado — fica só o `author_id`, para o próprio autor poder apagar.
+- **Curtir:** qualquer participante dá ❤️ num kudo (um por participante, clicar de novo desfaz).
+- **Apagar:** só o autor, validado no servidor como cards e ações.
+- **Para mim:** kudos cujo destinatário bate com o nome do participante (sem diferenciar maiúsculas/acentos) ficam destacados, e há um filtro "Para mim".
+
+O limite é de 300 kudos por ciclo (`kudos_full`). Ao **encerrar a retro**, os kudos do ciclo são arquivados (`archived_at`), não apagados, e o mural recomeça vazio.
+
 ## 10. Presença
 
 O header exibe quantos participantes estão online e seus nomes (via Supabase Presence).
@@ -152,6 +166,7 @@ Qualquer participante pode encerrar a retro. O servidor atomicamente:
 - Copia cards da coluna Ações para `prev_actions`
 - Deleta todos os cards das quatro colunas
 - Descarta sugestões pendentes
+- Arquiva os kudos do ciclo (seção 9.2)
 - Reseta timer para configurando (5 min)
 
 Na próxima retro com o mesmo token, as ações anteriores aparecem em modal "Ações da Sprint Anterior" com checkbox de conclusão.
@@ -161,7 +176,7 @@ O produto mantém apenas a sprint imediatamente anterior. Ao encerrar uma nova r
 ## 12. Persistência
 
 - Banco: Supabase PostgreSQL
-- Tabelas: `sessions`, `cards`, `action_cards`, `suggestions`, `prev_actions`, `board_snapshots`
+- Tabelas: `sessions`, `cards`, `action_cards`, `suggestions`, `prev_actions`, `board_snapshots`, `kudos`
 - Realtime: Supabase Realtime (broadcast + presence)
 - RLS: Acesso público (sem autenticação)
 
@@ -185,6 +200,7 @@ As migrações ficam em `supabase/migrations/`.
 | `timer_already_running` | Timer já está em execução                      |
 | `timer_not_running`     | Timer não está no estado válido para a ação    |
 | `timer_invalid_value`   | Valor de minutos inválido                      |
+| `kudos_full`            | Mural atingiu o limite de 300 kudos no ciclo   |
 
 ## 14. Fora de escopo
 

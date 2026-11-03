@@ -20,11 +20,12 @@ export default async function BoardPage({ params }: { params: Params }) {
   }
 
   // Fetch all related data
-  const [cardsResult, actionCardsResult, suggestionsResult, prevActionsResult] = await Promise.all([
+  const [cardsResult, actionCardsResult, suggestionsResult, prevActionsResult, kudosResult] = await Promise.all([
     supabase.from('cards').select('*').eq('session_token', token).order('created_at', { ascending: true }),
     supabase.from('action_cards').select('*').eq('session_token', token).order('created_at', { ascending: true }),
     supabase.from('suggestions').select('*').eq('session_token', token).order('created_at', { ascending: true }),
     supabase.from('prev_actions').select('*').eq('session_token', token).order('created_at', { ascending: true }),
+    supabase.from('kudos').select('*').eq('session_token', token).is('archived_at', null).order('created_at', { ascending: true }),
   ])
 
   return (
@@ -34,6 +35,7 @@ export default async function BoardPage({ params }: { params: Params }) {
       initialActionCards={actionCardsResult.data || []}
       initialSuggestions={suggestionsResult.data || []}
       initialPrevActions={prevActionsResult.data || []}
+      initialKudos={kudosResult.data || []}
     />
   )
 }
