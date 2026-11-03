@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useParticipant } from '@/hooks/use-participant'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useHistoryRealtime } from '@/hooks/use-history-realtime'
-import type { Session, Card, ActionCard, Suggestion, PrevAction, Kudo, SnapshotData } from '@/lib/types/database'
+import type { Session, Card, ActionCard, Suggestion, PrevAction, Kudo, DraftCounts, SnapshotData } from '@/lib/types/database'
 import { BoardHeader } from '@/components/board/board-header'
 import { BoardColumn } from '@/components/board/board-column'
 import { ActionsColumn } from '@/components/board/actions-column'
@@ -13,6 +13,7 @@ import { ParticipantsPanel } from '@/components/board/participants-panel'
 import { PrevActionsPanel } from '@/components/board/prev-actions-panel'
 import { AIPanel } from '@/components/board/ai-panel'
 import { KudosPanel } from '@/components/board/kudos-panel'
+import { DraftsPanel } from '@/components/board/drafts-panel'
 import { HistoryCalendar } from '@/components/board/history-calendar'
 import { HistoryBanner } from '@/components/board/history-banner'
 import { DrawingLayer } from '@/components/board/drawing-layer'
@@ -42,6 +43,7 @@ type BoardClientProps = {
   initialSuggestions: Suggestion[]
   initialPrevActions: PrevAction[]
   initialKudos: Kudo[]
+  initialDraftCounts: DraftCounts
 }
 
 export function BoardClient({
@@ -51,11 +53,13 @@ export function BoardClient({
   initialSuggestions,
   initialPrevActions,
   initialKudos,
+  initialDraftCounts,
 }: BoardClientProps) {
   const { participantId, participantName, updateName, isReady } = useParticipant()
   const [showAIPanel, setShowAIPanel] = useState(false)
   const [showPrevActions, setShowPrevActions] = useState(false)
   const [showKudos, setShowKudos] = useState(false)
+  const [showDrafts, setShowDrafts] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
   const [isDrawing, setIsDrawing] = useState(false)
   const [pendingOps, setPendingOps] = useState(0)
@@ -75,6 +79,8 @@ export function BoardClient({
     suggestions,
     prevActions,
     kudos,
+    draftCounts,
+    draftsReleaseVersion,
     session: realtimeSession,
     participants,
     isConnected,
@@ -86,6 +92,7 @@ export function BoardClient({
     suggestions: initialSuggestions,
     prevActions: initialPrevActions,
     kudos: initialKudos,
+    draftCounts: initialDraftCounts,
   })
 
   // Kudos novos desde a última vez que este navegador abriu o mural. O mural
@@ -340,6 +347,8 @@ export function BoardClient({
         isDrawing={isDrawing}
         onToggleDrawing={() => setIsDrawing(v => !v)}
         unreadKudos={unreadKudos}
+        draftsTotal={draftCounts.good + draftCounts.bad + draftCounts.ideas + draftCounts.actions}
+        onShowDrafts={() => setShowDrafts(true)}
         onShowKudos={() => {
           setShowKudos(true)
           markKudosSeen()
@@ -452,6 +461,19 @@ export function BoardClient({
           participantId={participantId}
           broadcast={broadcast}
           onClose={() => setShowPrevActions(false)}
+        />
+      )}
+
+      {/* Caixinha da sprint */}
+      {showDrafts && (
+        <DraftsPanel
+          sessionToken={session.token}
+          participantId={participantId}
+          participantName={participantName}
+          counts={draftCounts}
+          releaseVersion={draftsReleaseVersion}
+          broadcast={broadcast}
+          onClose={() => setShowDrafts(false)}
         />
       )}
 

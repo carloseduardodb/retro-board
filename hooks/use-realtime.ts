@@ -10,6 +10,7 @@ import type {
   Suggestion,
   PrevAction,
   Kudo,
+  DraftCounts,
   Participant,
   RealtimeEvent,
 } from "@/lib/types/database";
@@ -20,6 +21,10 @@ type RealtimeState = {
   suggestions: Suggestion[];
   prevActions: PrevAction[];
   kudos: Kudo[];
+  draftCounts: DraftCounts;
+  // Sobe a cada vez que a caixinha é jogada no board — avisa quem tem a
+  // lista das próprias anotações aberta que ela esvaziou.
+  draftsReleaseVersion: number;
   session: Session | null;
   participants: Participant[];
   isConnected: boolean;
@@ -40,6 +45,7 @@ export function useRealtime(
     suggestions: Suggestion[];
     prevActions: PrevAction[];
     kudos: Kudo[];
+    draftCounts: DraftCounts;
   },
 ): UseRealtimeReturn {
   const [state, setState] = useState<RealtimeState>({
@@ -48,6 +54,8 @@ export function useRealtime(
     suggestions: initialData.suggestions,
     prevActions: initialData.prevActions,
     kudos: initialData.kudos,
+    draftCounts: initialData.draftCounts,
+    draftsReleaseVersion: 0,
     session: initialData.session,
     participants: [],
     isConnected: false,
@@ -173,6 +181,27 @@ export function useRealtime(
             ...prev,
             kudos: prev.kudos.filter((k) => k.id !== event.payload.id),
           };
+
+        case "drafts_count":
+          return { ...prev, draftCounts: event.payload };
+
+        case "drafts_released": {
+          const cardIds = new Set(prev.cards.map((c) => c.id));
+          const actionIds = new Set(prev.actionCards.map((a) => a.id));
+          return {
+            ...prev,
+            cards: [
+              ...prev.cards,
+              ...event.payload.cards.filter((c) => !cardIds.has(c.id)),
+            ],
+            actionCards: [
+              ...prev.actionCards,
+              ...event.payload.actionCards.filter((a) => !actionIds.has(a.id)),
+            ],
+            draftCounts: event.payload.counts,
+            draftsReleaseVersion: prev.draftsReleaseVersion + 1,
+          };
+        }
 
         case "retro_closed":
           return {

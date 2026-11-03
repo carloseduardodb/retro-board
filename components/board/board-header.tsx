@@ -22,7 +22,8 @@ import {
   Sun,
   Pencil,
   Clapperboard,
-  Heart
+  Heart,
+  Inbox
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -34,6 +35,8 @@ type BoardHeaderProps = {
   isDrawing: boolean
   onToggleDrawing: () => void
   unreadKudos: number
+  draftsTotal: number
+  onShowDrafts: () => void
   onShowKudos: () => void
   onShowPrevActions: () => void
   onShowAI: () => void
@@ -48,6 +51,8 @@ export function BoardHeader({
   isDrawing,
   onToggleDrawing,
   unreadKudos,
+  draftsTotal,
+  onShowDrafts,
   onShowKudos,
   onShowPrevActions,
   onShowAI,
@@ -119,6 +124,28 @@ export function BoardHeader({
             <Users className="w-4 h-4" />
             <span>{participantsCount}</span>
           </div>
+
+          {/* Caixinha da sprint */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="relative h-8 w-8 p-0"
+            onClick={onShowDrafts}
+            title="Caixinha da sprint"
+          >
+            <Inbox className="w-4 h-4" />
+            {draftsTotal > 0 && (
+              <span
+                className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold leading-4 text-center"
+                aria-hidden
+              >
+                {draftsTotal > 99 ? '99+' : draftsTotal}
+              </span>
+            )}
+            <span className="sr-only">
+              Caixinha da sprint{draftsTotal > 0 ? ` (${draftsTotal} anotações)` : ''}
+            </span>
+          </Button>
 
           {/* Mural de kudos */}
           <Button

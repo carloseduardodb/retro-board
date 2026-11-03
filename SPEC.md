@@ -141,7 +141,19 @@ O header tem um botão de lápis que liga o **modo desenho**. Nele, uma camada d
 - Os pontos são normalizados (0..1) em relação à área do board, para que o traço caia no lugar equivalente em telas de tamanhos diferentes.
 - Transporte: canal de broadcast próprio (`draw:<token>`), separado do canal do board, com os pontos enviados em lotes a cada 60 ms. Nada disso passa pelo estado do React — o canvas lê os traços de um ref dentro de um `requestAnimationFrame`.
 
-## 9.2 Mural de Kudos
+## 9.2 Caixinha da sprint
+
+Espaço para anotar **durante a sprint** o que vai para a retro — nas mesmas quatro categorias do board (bom, a melhorar, ideias, ações) —, para nada se perder até o dia da retro.
+
+O botão de caixa de entrada no header abre a caixinha e mostra quantas anotações o time já guardou.
+
+- **Privada até a retro:** cada participante vê, edita e apaga só as próprias anotações (validado no servidor pelo `author_id`). Dos outros, só aparece a contagem por coluna — o texto nunca sai do servidor antes de ir para o board, nem no carregamento da página.
+- **Jogar no board:** qualquer participante pode despejar a caixinha inteira, com confirmação. Cada anotação vira um card anônimo na sua coluna (ou uma ação), inclusive as de quem não está online, e sai da caixinha. Se o timer estiver rodando, os cards novos seguem a ocultação anti-viés (seção 5.2).
+- **Concorrência:** a anotação é reivindicada com um delete que devolve a linha antes de virar card, então dois cliques simultâneos não duplicam nada. Se a inserção no board falhar, a anotação volta para a caixinha.
+- **Limites:** 500 caracteres por anotação e 400 na caixinha (`drafts_full`). Anotações de uma coluna que já tem 100 cards ficam na caixinha.
+- Encerrar a retro não mexe na caixinha: o que foi anotado depois de jogá-la no board já é para a próxima.
+
+## 9.3 Mural de Kudos
 
 Espaço para o time reconhecer uns aos outros **entre uma retro e a outra** — não depende do timer nem de a retro estar acontecendo: basta abrir o link do board a qualquer momento da sprint.
 
@@ -166,7 +178,7 @@ Qualquer participante pode encerrar a retro. O servidor atomicamente:
 - Copia cards da coluna Ações para `prev_actions`
 - Deleta todos os cards das quatro colunas
 - Descarta sugestões pendentes
-- Arquiva os kudos do ciclo (seção 9.2)
+- Arquiva os kudos do ciclo (seção 9.3)
 - Reseta timer para configurando (5 min)
 
 Na próxima retro com o mesmo token, as ações anteriores aparecem em modal "Ações da Sprint Anterior" com checkbox de conclusão.
@@ -176,7 +188,7 @@ O produto mantém apenas a sprint imediatamente anterior. Ao encerrar uma nova r
 ## 12. Persistência
 
 - Banco: Supabase PostgreSQL
-- Tabelas: `sessions`, `cards`, `action_cards`, `suggestions`, `prev_actions`, `board_snapshots`, `kudos`
+- Tabelas: `sessions`, `cards`, `action_cards`, `suggestions`, `prev_actions`, `board_snapshots`, `kudos`, `draft_cards`
 - Realtime: Supabase Realtime (broadcast + presence)
 - RLS: Acesso público (sem autenticação)
 
@@ -200,6 +212,7 @@ As migrações ficam em `supabase/migrations/`.
 | `timer_already_running` | Timer já está em execução                      |
 | `timer_not_running`     | Timer não está no estado válido para a ação    |
 | `timer_invalid_value`   | Valor de minutos inválido                      |
+| `drafts_full`           | Caixinha atingiu o limite de 400 anotações     |
 | `kudos_full`            | Mural atingiu o limite de 300 kudos no ciclo   |
 
 ## 14. Fora de escopo

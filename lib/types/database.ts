@@ -192,6 +192,36 @@ export type Database = {
         }
         Relationships: []
       }
+      draft_cards: {
+        Row: {
+          id: string
+          session_token: string
+          column_type: 'good' | 'bad' | 'ideas' | 'actions'
+          text: string
+          author: string
+          author_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_token: string
+          column_type: 'good' | 'bad' | 'ideas' | 'actions'
+          text: string
+          author: string
+          author_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_token?: string
+          column_type?: 'good' | 'bad' | 'ideas' | 'actions'
+          text?: string
+          author?: string
+          author_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       kudos: {
         Row: {
           id: string
@@ -271,6 +301,9 @@ export type Suggestion = Database['public']['Tables']['suggestions']['Row']
 export type PrevAction = Database['public']['Tables']['prev_actions']['Row']
 export type BoardSnapshot = Database['public']['Tables']['board_snapshots']['Row']
 export type Kudo = Database['public']['Tables']['kudos']['Row']
+export type DraftCard = Database['public']['Tables']['draft_cards']['Row']
+// Quantas anotações há na caixinha por coluna — é só isso que os outros veem.
+export type DraftCounts = Record<'good' | 'bad' | 'ideas' | 'actions', number>
 
 export type ColumnType = 'good' | 'bad' | 'ideas' | 'actions'
 export type TimerStatus = 'configuring' | 'running' | 'paused' | 'finished'
@@ -299,3 +332,5 @@ export type RealtimeEvent =
   | { type: 'kudo_added'; payload: Kudo }
   | { type: 'kudo_updated'; payload: Kudo }
   | { type: 'kudo_deleted'; payload: { id: string } }
+  | { type: 'drafts_count'; payload: DraftCounts }
+  | { type: 'drafts_released'; payload: { cards: Card[]; actionCards: ActionCard[]; counts: DraftCounts } }

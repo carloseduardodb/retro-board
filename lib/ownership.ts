@@ -31,7 +31,7 @@ const FORBIDDEN: OwnershipDenial = {
  */
 export async function denyUnlessOwner(
   supabase: SupabaseClient,
-  table: 'cards' | 'action_cards' | 'kudos',
+  table: 'cards' | 'action_cards' | 'kudos' | 'draft_cards',
   id: string,
   authorId: unknown,
 ): Promise<OwnershipDenial | null> {
